@@ -1,17 +1,37 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
-const data = [
-  { name: "Payées", value: 68, color: "#2E7D32" },
-  { name: "Partielles", value: 22, color: "#F9C74F" },
-  { name: "Impayées", value: 10, color: "#C62828" },
-];
+type Period = "day" | "month" | "year";
 
-export function InvoiceDistributionChart() {
+interface InvoiceDistributionChartProps {
+  period?: Period;
+}
+
+const dataByPeriod = {
+  day: [
+    { name: "Payées", value: 75, color: "#2E7D32" },
+    { name: "Partielles", value: 20, color: "#F9C74F" },
+    { name: "Impayées", value: 5, color: "#C62828" },
+  ],
+  month: [
+    { name: "Payées", value: 68, color: "#2E7D32" },
+    { name: "Partielles", value: 22, color: "#F9C74F" },
+    { name: "Impayées", value: 10, color: "#C62828" },
+  ],
+  year: [
+    { name: "Payées", value: 72, color: "#2E7D32" },
+    { name: "Partielles", value: 18, color: "#F9C74F" },
+    { name: "Impayées", value: 10, color: "#C62828" },
+  ],
+};
+
+export function InvoiceDistributionChart({ period = "month" }: InvoiceDistributionChartProps) {
+  const data = dataByPeriod[period];
+
   return (
     <div className="rounded-xl border border-[#E5E7EB] bg-white p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-[#1F2937]">Factures</h3>
-        <p className="text-sm text-[#6B7280]">Répartition par statut</p>
+        <h3 className="text-lg font-semibold text-[#1F2937]">Répartition des factures</h3>
+        <p className="text-sm text-[#6B7280]">Par statut de paiement</p>
       </div>
       <div className="h-[220px] relative">
         <ResponsiveContainer width="100%" height="100%">

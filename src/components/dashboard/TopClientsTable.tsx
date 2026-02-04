@@ -1,5 +1,6 @@
-import { Badge } from "@/components/ui/badge";
 import { ArrowRight } from "lucide-react";
+
+type Period = "day" | "month" | "year";
 
 interface Client {
   id: string;
@@ -10,12 +11,29 @@ interface Client {
   ca: number;
 }
 
-const clients: Client[] = [
-  { id: "1", name: "Supermarché Central", phone: "+225 07 88 12 34 56", totalSpent: 12500000, ca: 68, status: "good" },
-  { id: "2", name: "Restaurant Le Palmier", phone: "+225 05 67 89 01 23", totalSpent: 8700000, ca: 47, status: "good" },
-  { id: "3", name: "Hôtel Ivoire Palace", phone: "+225 01 23 45 67 89", totalSpent: 6200000, ca: 34, status: "warning" },
-  { id: "4", name: "Casino Supérette", phone: "+225 05 55 66 77 88", totalSpent: 3900000, ca: 21, status: "critical" },
-];
+interface TopClientsTableProps {
+  period?: Period;
+}
+
+const clientsByPeriod = {
+  day: [
+    { id: "1", name: "Seydou Diop - Dakar", phone: "+221 77 123 45 67", totalSpent: 450000, ca: 45, status: "good" },
+    { id: "2", name: "Mamadou Bah - Conakry", phone: "+224 624 12 34 56", totalSpent: 320000, ca: 32, status: "good" },
+    { id: "3", name: "Fatou Ndiaye - Saint-Louis", phone: "+221 70 987 65 43", totalSpent: 280000, ca: 28, status: "warning" },
+  ],
+  month: [
+    { id: "1", name: "Seydou Diop - Dakar", phone: "+221 77 123 45 67", totalSpent: 12500000, ca: 68, status: "good" },
+    { id: "2", name: "Mamadou Bah - Conakry", phone: "+224 624 12 34 56", totalSpent: 8700000, ca: 47, status: "good" },
+    { id: "3", name: "Fatou Ndiaye - Saint-Louis", phone: "+221 70 987 65 43", totalSpent: 6200000, ca: 34, status: "warning" },
+    { id: "4", name: "Aminata Touré - Kaolack", phone: "+221 76 555 66 77", totalSpent: 3900000, ca: 21, status: "critical" },
+  ],
+  year: [
+    { id: "1", name: "Seydou Diop - Dakar", phone: "+221 77 123 45 67", totalSpent: 45000000, ca: 72, status: "good" },
+    { id: "2", name: "Mamadou Bah - Conakry", phone: "+224 624 12 34 56", totalSpent: 32000000, ca: 52, status: "good" },
+    { id: "3", name: "Fatou Ndiaye - Saint-Louis", phone: "+221 70 987 65 43", totalSpent: 28000000, ca: 45, status: "warning" },
+    { id: "4", name: "Aminata Touré - Kaolack", phone: "+221 76 555 66 77", totalSpent: 15000000, ca: 24, status: "critical" },
+  ],
+};
 
 const statusConfig = {
   good: { label: "À jour", bg: "bg-[#2E7D32]/10", text: "text-[#2E7D32]" },
@@ -23,7 +41,8 @@ const statusConfig = {
   critical: { label: "Critique", bg: "bg-[#C62828]/10", text: "text-[#C62828]" },
 };
 
-export function TopClientsTable() {
+export function TopClientsTable({ period = "month" }: TopClientsTableProps) {
+  const clients = clientsByPeriod[period];
   const maxCA = Math.max(...clients.map(c => c.ca));
 
   return (
