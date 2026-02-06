@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Phone, MessageCircle, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Phone, MessageCircle, UserPlus, ChevronLeft, ChevronRight, Users, UserCheck, DollarSign, ShoppingCart } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { KPICard } from "@/components/dashboard/KPICard";
 import {
   Dialog,
   DialogContent,
@@ -101,6 +102,12 @@ export default function Clients() {
       client.phone.includes(searchQuery)
   );
 
+  // Calculate KPI metrics
+  const totalClients = clients.length;
+  const activeClients = clients.filter(c => c.isActive).length;
+  const totalDebt = clients.reduce((sum, c) => sum + c.debt, 0);
+  const totalPurchases = clients.reduce((sum, c) => sum + c.totalPurchases, 0);
+
   const totalPages = Math.ceil(filteredClients.length / ITEMS_PER_PAGE);
   const startIndex = (page - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -155,6 +162,38 @@ export default function Clients() {
             <UserPlus className="mr-2 h-4 w-4" />
             Enregistrer un client
           </Button>
+        </div>
+
+        {/* KPI Cards - Same style as Dashboard */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KPICard
+            title="Total Clients"
+            value={totalClients.toString()}
+            icon={Users}
+            isPositive={true}
+            isNegative={false}
+          />
+          <KPICard
+            title="Clients Actifs"
+            value={activeClients.toString()}
+            icon={UserCheck}
+            isPositive={true}
+            isNegative={false}
+          />
+          <KPICard
+            title="Dette Totale"
+            value={`${(totalDebt / 1000000).toFixed(1)}M F`}
+            icon={DollarSign}
+            isPositive={false}
+            isNegative={true}
+          />
+          <KPICard
+            title="Total Achats"
+            value={`${(totalPurchases / 1000000).toFixed(1)}M F`}
+            icon={ShoppingCart}
+            isPositive={true}
+            isNegative={false}
+          />
         </div>
 
         {/* Search */}
