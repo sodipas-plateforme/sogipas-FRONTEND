@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { 
-  ArrowLeft, Phone, MessageCircle, FileText, CreditCard, Package, 
+import jsPDF from "jspdf";
+import {  
+  ArrowLeft, Phone, FileText, CreditCard, Package, 
   Plus, Download, Send, DollarSign, FilePlus, MapPin, Mail, User,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, CheckSquare, Square, Building2
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,51 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Mock client data (in real app, fetch from API)
+// Types
+interface InvoiceItem {
+  name: string;
+  quantity: number;
+  price: number;
+  cageots?: number;
+}
+
+interface Invoice {
+  id: string;
+  date: string;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  status: "pending" | "partial" | "paid" | "overdue";
+  items: InvoiceItem[];
+  hangar: string;
+  responsiblePerson: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  clientAddress: string;
+}
+
+interface Payment {
+  id: string;
+  date: string;
+  amount: number;
+  method: string;
+  invoices: string[];
+}
+
+interface CageotsHistory {
+  id: string;
+  date: string;
+  type: "Ajout" | "Retrait";
+  quantity: number;
+  reason: string;
+}
+
+// Mock client data
 const mockClient = {
   id: "1",
   name: "Moussa Diop",
@@ -35,54 +77,132 @@ const mockClient = {
   createdAt: "01/06/2023",
 };
 
-// Mock invoices
-const mockInvoices = [
-  { id: "INV-2024-001", date: "15/01/2024", amount: 450000, status: "pending" as const, items: [
-    { name: "Bananes plantain", quantity: 50, price: 5000 },
-    { name: "Mangues", quantity: 100, price: 2500 },
-  ]},
-  { id: "INV-2024-002", date: "10/01/2024", amount: 320000, status: "paid" as const, items: [
-    { name: "Ananas", quantity: 80, price: 4000 },
-  ]},
-  { id: "INV-2024-003", date: "05/01/2024", amount: 280000, status: "paid" as const, items: [
-    { name: "Oranges", quantity: 140, price: 2000 },
-  ]},
-  { id: "INV-2023-145", date: "28/12/2023", amount: 520000, status: "overdue" as const, items: [
-    { name: "Bananes douces", quantity: 60, price: 4500 },
-    { name: "Papayes", quantity: 40, price: 7000 },
-  ]},
-  { id: "INV-2023-142", date: "20/12/2023", amount: 185000, status: "paid" as const, items: [
-    { name: "Mangues", quantity: 74, price: 2500 },
-  ]},
-  { id: "INV-2023-138", date: "15/12/2023", amount: 275000, status: "paid" as const, items: [
-    { name: "Bananes plantain", quantity: 55, price: 5000 },
-  ]},
-  { id: "INV-2023-135", date: "10/12/2023", amount: 420000, status: "overdue" as const, items: [
-    { name: "Ananas", quantity: 70, price: 4000 },
-    { name: "Papayes", quantity: 30, price: 7000 },
-  ]},
+// Mock invoices with enhanced data
+const mockInvoices: Invoice[] = [
+  { 
+    id: "INV-2024-001", 
+    date: "15/01/2024", 
+    dueDate: "20/01/2024",
+    amount: 450000, 
+    paidAmount: 0,
+    status: "pending" as const, 
+    items: [
+      { name: "Bananes plantain", quantity: 50, price: 5000, cageots: 10 },
+      { name: "Mangues", quantity: 100, price: 2500, cageots: 20 },
+    ],
+    hangar: "Hangar A",
+    responsiblePerson: "Mamadou Traoré",
+    clientId: "1",
+    clientName: "Moussa Diop",
+    clientPhone: "+221 77 123 45 67",
+    clientAddress: "45 Rue Diop, Dakar",
+  },
+  { 
+    id: "INV-2024-002", 
+    date: "10/01/2024", 
+    dueDate: "15/01/2024",
+    amount: 320000, 
+    paidAmount: 200000,
+    status: "partial" as const, 
+    items: [
+      { name: "Ananas", quantity: 80, price: 4000, cageots: 16 },
+    ],
+    hangar: "Hangar B",
+    responsiblePerson: "Aminata Diallo",
+    clientId: "1",
+    clientName: "Moussa Diop",
+    clientPhone: "+221 77 123 45 67",
+    clientAddress: "45 Rue Diop, Dakar",
+  },
+  { 
+    id: "INV-2024-003", 
+    date: "05/01/2024", 
+    dueDate: "05/01/2024",
+    amount: 280000, 
+    paidAmount: 280000,
+    status: "paid" as const, 
+    items: [
+      { name: "Oranges", quantity: 140, price: 2000, cageots: 28 },
+    ],
+    hangar: "Hangar A",
+    responsiblePerson: "Mamadou Traoré",
+    clientId: "1",
+    clientName: "Moussa Diop",
+    clientPhone: "+221 77 123 45 67",
+    clientAddress: "45 Rue Diop, Dakar",
+  },
+  { 
+    id: "INV-2023-145", 
+    date: "28/12/2023", 
+    dueDate: "03/01/2024",
+    amount: 520000, 
+    paidAmount: 0,
+    status: "overdue" as const, 
+    items: [
+      { name: "Bananes douces", quantity: 60, price: 4500, cageots: 12 },
+      { name: "Papayes", quantity: 40, price: 7000, cageots: 8 },
+    ],
+    hangar: "Hangar C",
+    responsiblePerson: "Souleymane Barry",
+    clientId: "1",
+    clientName: "Moussa Diop",
+    clientPhone: "+221 77 123 45 67",
+    clientAddress: "45 Rue Diop, Dakar",
+  },
+  { 
+    id: "INV-2023-142", 
+    date: "20/12/2023", 
+    dueDate: "20/12/2023",
+    amount: 185000, 
+    paidAmount: 185000,
+    status: "paid" as const, 
+    items: [
+      { name: "Mangues", quantity: 74, price: 2500, cageots: 15 },
+    ],
+    hangar: "Hangar B",
+    responsiblePerson: "Aminata Diallo",
+    clientId: "1",
+    clientName: "Moussa Diop",
+    clientPhone: "+221 77 123 45 67",
+    clientAddress: "45 Rue Diop, Dakar",
+  },
 ];
 
 // Mock payments
-const mockPayments = [
-  { id: "PAY-2024-001", date: "12/01/2024", amount: 320000, method: "Mobile Money" },
-  { id: "PAY-2024-002", date: "06/01/2024", amount: 280000, method: "Virement" },
-  { id: "PAY-2023-156", date: "30/12/2023", amount: 400000, method: "Espèces" },
-  { id: "PAY-2023-150", date: "22/12/2023", amount: 185000, method: "Mobile Money" },
-  { id: "PAY-2023-145", date: "15/12/2023", amount: 250000, method: "Virement" },
-  { id: "PAY-2023-140", date: "08/12/2023", amount: 275000, method: "Mobile Money" },
-  { id: "PAY-2023-135", date: "01/12/2023", amount: 180000, method: "Espèces" },
+const mockPayments: Payment[] = [
+  { id: "PAY-2024-001", date: "12/01/2024", amount: 320000, method: "Mobile Money", invoices: ["INV-2024-002"] },
+  { id: "PAY-2024-002", date: "06/01/2024", amount: 280000, method: "Virement", invoices: ["INV-2024-003"] },
+  { id: "PAY-2023-156", date: "30/12/2023", amount: 400000, method: "Espèces", invoices: ["INV-2023-142"] },
+  { id: "PAY-2023-150", date: "22/12/2023", amount: 185000, method: "Mobile Money", invoices: ["INV-2023-142"] },
 ];
 
 // Mock cageots history
-const mockCageotsHistory = [
+const mockCageotsHistory: CageotsHistory[] = [
   { id: "CAG-001", date: "15/01/2024", type: "Ajout", quantity: 10, reason: "Livraison" },
   { id: "CAG-002", date: "10/01/2024", type: "Retrait", quantity: 5, reason: "Retour client" },
   { id: "CAG-003", date: "05/01/2024", type: "Ajout", quantity: 15, reason: "Livraison" },
   { id: "CAG-004", date: "28/12/2023", type: "Retrait", quantity: 8, reason: "Vente" },
   { id: "CAG-005", date: "20/12/2023", type: "Ajout", quantity: 13, reason: "Livraison" },
-  { id: "CAG-006", date: "15/12/2023", type: "Retrait", quantity: 10, reason: "Vente" },
-  { id: "CAG-007", date: "10/12/2023", type: "Ajout", quantity: 20, reason: "Livraison" },
+];
+
+// Mock hangars and responsible persons
+const mockHangars = ["Hangar A", "Hangar B", "Hangar C"];
+const mockResponsiblePersons = [
+  { name: "Mamadou Traoré", hangar: "Hangar A" },
+  { name: "Aminata Diallo", hangar: "Hangar B" },
+  { name: "Souleymane Barry", hangar: "Hangar C" },
+];
+
+// Mock products for invoice creation
+const mockProducts = [
+  { name: "Bananes plantain", price: 5000 },
+  { name: "Bananes douces", price: 4500 },
+  { name: "Mangues", price: 2500 },
+  { name: "Ananas", price: 4000 },
+  { name: "Oranges", price: 2000 },
+  { name: "Papayes", price: 7000 },
+  { name: "Avocats", price: 3500 },
+  { name: "Citrons", price: 1500 },
 ];
 
 const ITEMS_PER_PAGE = 5;
@@ -94,10 +214,19 @@ export default function ClientProfile() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [isCageotsOpen, setIsCageotsOpen] = useState(false);
+  const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Mobile Money");
   const [newCageots, setNewCageots] = useState("");
   const [cageotsType, setCageotsType] = useState("Ajout");
+
+  // Invoice creation state
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([{ name: "", quantity: 0, price: 0, cageots: 0 }]);
+  const [selectedHangar, setSelectedHangar] = useState("");
+  const [selectedResponsible, setSelectedResponsible] = useState("");
+  const [invoiceType, setInvoiceType] = useState<"paid" | "partial" | "unpaid">("unpaid");
+  const [invoicePaymentAmount, setInvoicePaymentAmount] = useState("");
+  const [invoiceDueDate, setInvoiceDueDate] = useState("");
 
   // Pagination state
   const [invoicesPage, setInvoicesPage] = useState(1);
@@ -124,8 +253,17 @@ export default function ClientProfile() {
   
   // Calculate totals
   const totalPaid = mockPayments.reduce((sum, p) => sum + p.amount, 0);
-  const pendingAmount = mockInvoices.filter(i => i.status !== "paid").reduce((sum, i) => sum + i.amount, 0);
+  const overdueAmount = mockInvoices.filter(i => i.status === "overdue").reduce((sum, i) => sum + i.amount, 0);
   const cageotsBalance = mockClient.cageots;
+
+  // Get unpaid/partial invoices for payment
+  const payableInvoices = mockInvoices.filter(i => i.status === "pending" || i.status === "partial");
+
+  // Calculate selected invoices total
+  const selectedInvoicesTotal = selectedInvoices.reduce((sum, invId) => {
+    const invoice = mockInvoices.find(i => i.id === invId);
+    return sum + (invoice ? invoice.amount - invoice.paidAmount : 0);
+  }, 0);
 
   const sendWhatsApp = () => {
     const statusText = mockClient.isActive ? "Actif" : "Bloqué";
@@ -141,13 +279,112 @@ export default function ClientProfile() {
       alert("Veuillez entrer un montant valide");
       return;
     }
-    alert(`Paiement de ${amount.toLocaleString()} F enregistré pour ${mockClient.name}\nMode: ${paymentMethod}`);
+    if (selectedInvoices.length === 0) {
+      alert("Veuillez sélectionner au moins une facture");
+      return;
+    }
+    alert(`Paiement de ${amount.toLocaleString()} F enregistré pour ${mockClient.name}\nFactures: ${selectedInvoices.join(", ")}\nMode: ${paymentMethod}`);
     setIsPaymentOpen(false);
+    setSelectedInvoices([]);
+    setPaymentAmount("");
+  };
+
+  const toggleInvoiceSelection = (invoiceId: string) => {
+    setSelectedInvoices(prev => 
+      prev.includes(invoiceId) 
+        ? prev.filter(id => id !== invoiceId)
+        : [...prev, invoiceId]
+    );
+  };
+
+  const selectAllPayableInvoices = () => {
+    if (selectedInvoices.length === payableInvoices.length) {
+      setSelectedInvoices([]);
+    } else {
+      setSelectedInvoices(payableInvoices.map(i => i.id));
+    }
   };
 
   const handleInvoiceSubmit = () => {
-    alert(`Facture générée pour ${mockClient.name}`);
+    const totalAmount = invoiceItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    const validItems = invoiceItems.filter(item => item.name && item.quantity > 0);
+    
+    // Calculate paid amount based on invoice type
+    let paidAmount = 0;
+    let status: "paid" | "partial" | "pending" = "pending";
+    
+    if (invoiceType === "paid") {
+      paidAmount = totalAmount;
+      status = "paid";
+    } else if (invoiceType === "partial") {
+      const payment = parseInt(invoicePaymentAmount.replace(/\D/g, "")) || 0;
+      paidAmount = Math.min(payment, totalAmount);
+      status = paidAmount > 0 ? "partial" : "pending";
+    }
+    
+    const newInvoice: Invoice = {
+      id: `INV-${new Date().getFullYear()}-${String(mockInvoices.length + 1).padStart(3, '0')}`,
+      date: new Date().toLocaleDateString("fr-FR"),
+      dueDate: invoiceDueDate,
+      amount: totalAmount,
+      paidAmount: paidAmount,
+      status: status,
+      items: validItems,
+      hangar: selectedHangar,
+      responsiblePerson: selectedResponsible,
+      clientId: mockClient.id,
+      clientName: mockClient.name,
+      clientPhone: mockClient.phone,
+      clientAddress: mockClient.address,
+    };
+    
+    let message = `Facture ${newInvoice.id} générée pour ${mockClient.name}\nMontant: ${totalAmount.toLocaleString()} F\nHangar: ${selectedHangar}\nResponsable: ${selectedResponsible}`;
+    
+    if (invoiceType === "paid") {
+      message += `\n\nPaiement immédiat enregistré: ${formatCurrency(totalAmount)}`;
+    } else if (invoiceType === "partial" && paidAmount > 0) {
+      message += `\n\nPaiement partiel enregistré: ${formatCurrency(paidAmount)}\nReste à payer: ${formatCurrency(totalAmount - paidAmount)}`;
+    } else {
+      message += `\n\nCette facture sera disponible pour sélection lors des paiements.`;
+    }
+    
+    alert(message);
     setIsInvoiceOpen(false);
+    resetInvoiceForm();
+  };
+
+  const resetInvoiceForm = () => {
+    setInvoiceItems([{ name: "", quantity: 0, price: 0, cageots: 0 }]);
+    setSelectedHangar("");
+    setSelectedResponsible("");
+    setInvoiceType("unpaid");
+    setInvoicePaymentAmount("");
+    setInvoiceDueDate("");
+  };
+
+  const addInvoiceItem = () => {
+    setInvoiceItems([...invoiceItems, { name: "", quantity: 0, price: 0, cageots: 0 }]);
+  };
+
+  const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+    const updated = [...invoiceItems];
+    if (field === "name" && typeof value === "string") {
+      const product = mockProducts.find(p => p.name === value);
+      updated[index] = { 
+        ...updated[index], 
+        [field]: value,
+        price: product?.price || 0,
+      };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
+    setInvoiceItems(updated);
+  };
+
+  const removeInvoiceItem = (index: number) => {
+    if (invoiceItems.length > 1) {
+      setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
+    }
   };
 
   const handleCageotsSubmit = () => {
@@ -160,41 +397,130 @@ export default function ClientProfile() {
     setIsCageotsOpen(false);
   };
 
-  const generatePDF = (invoice: typeof mockInvoices[0]) => {
-    const content = `
-╔══════════════════════════════════════════════════════════════╗
-║                      SODIPAS - FACTURE                       ║
-╠══════════════════════════════════════════════════════════════╣
-║ Date: ${invoice.date}                                           ║
-║ Facture: ${invoice.id}                                          ║
-║ Client: ${mockClient.name}                                     ║
-║ Téléphone: ${mockClient.phone}                                ║
-║ Adresse: ${mockClient.address}                                 ║
-╠══════════════════════════════════════════════════════════════╣
-║ DÉTAILS                                                        ║
-╟──────────────────────────────────────────────────────────────╢
-${invoice.items.map(item => `║ ${item.name.padEnd(20)} ${item.quantity.toString().padStart(5)} x ${item.price.toLocaleString().padStart(8)} F  ${(item.quantity * item.price).toLocaleString().padStart(10)} F`).join('\n')}
-╠══════════════════════════════════════════════════════════════╣
-║ TOTAL: ${invoice.amount.toLocaleString().padStart(35)} F                    ║
-╠══════════════════════════════════════════════════════════════╣
-║ Statut: ${invoice.status === "paid" ? "PAYÉE" : invoice.status === "pending" ? "EN ATTENTE" : "IMPAYÉE".padEnd(53)}║
-╚══════════════════════════════════════════════════════════════╝
-
-Merci de votre confiance chez SODIPAS!
-    `;
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${invoice.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const generatePDF = (invoice: Invoice) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    let y = 20;
+    
+    // Header with blue background (#1F3A5F)
+    doc.setFillColor(31, 58, 95);
+    doc.rect(0, 0, pageWidth, 40, "F");
+    
+    // SODIPAS text in white
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.text("SODIPAS", margin, 25);
+    
+    // Invoice number in top right
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Facture N° ${invoice.id}`, pageWidth - margin, 20, { align: "right" });
+    doc.text(invoice.date, pageWidth - margin, 28, { align: "right" });
+    
+    y = 55;
+    
+    // Client Info Section with light blue background
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, y, pageWidth - margin * 2, 35, 3, 3, "F");
+    
+    doc.setTextColor(31, 58, 95);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("INFORMATIONS CLIENT", margin + 5, y + 10);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Client: ${invoice.clientName}`, margin + 5, y + 18);
+    doc.text(`Téléphone: ${invoice.clientPhone}`, margin + 5, y + 26);
+    doc.text(`Adresse: ${invoice.clientAddress}`, pageWidth / 2, y + 18);
+    
+    y += 45;
+    
+    // Products Table Header
+    doc.setFillColor(31, 58, 95);
+    doc.rect(margin, y, pageWidth - margin * 2, 10, "F");
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Désignation", margin + 5, y + 7);
+    doc.text("Qté", pageWidth / 2 - 20, y + 7, { align: "center" });
+    doc.text("Prix Unitaire", pageWidth / 2 + 20, y + 7, { align: "center" });
+    doc.text("Total", pageWidth - margin - 5, y + 7, { align: "right" });
+    
+    y += 10;
+    
+    // Products
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    
+    invoice.items.forEach((item, index) => {
+      const rowBg = index % 2 === 0 ? 255 : 248;
+      if (rowBg < 255) {
+        doc.setFillColor(rowBg, rowBg, rowBg);
+        doc.rect(margin, y, pageWidth - margin * 2, 10, "F");
+      }
+      
+      const unitPrice = item.price.toLocaleString();
+      const itemTotal = (item.quantity * item.price).toLocaleString();
+      
+      doc.text(item.name, margin + 5, y + 7);
+      doc.text(item.quantity.toString(), pageWidth / 2 - 20, y + 7, { align: "center" });
+      doc.text(`${unitPrice} F`, pageWidth / 2 + 20, y + 7, { align: "center" });
+      doc.text(`${itemTotal} F`, pageWidth - margin - 5, y + 7, { align: "right" });
+      
+      y += 10;
+    });
+    
+    y += 5;
+    
+    // Payment Info Section
+    doc.setTextColor(107, 114, 128);
+    doc.setFontSize(9);
+    doc.text(`Paiement: ${invoice.status === "paid" ? "Payé" : invoice.status === "partial" ? "Partiel" : invoice.status === "overdue" ? "Impayé" : "En attente"}`, margin, y);
+    
+    y += 8;
+    
+    // Summary Section
+    const summaryX = pageWidth - margin - 60;
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(summaryX, y, 65, 40, 2, 2, "F");
+    
+    doc.setTextColor(107, 114, 128);
+    doc.setFontSize(9);
+    doc.text("Montant", summaryX + 5, y + 10);
+    doc.text("Réduction", summaryX + 5, y + 20);
+    doc.setFontSize(11);
+    doc.text("Total", summaryX + 5, y + 32);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(`${invoice.amount.toLocaleString()} F`, summaryX + 60, y + 10, { align: "right" });
+    doc.text("0 F", summaryX + 60, y + 20, { align: "right" });
+    doc.setFontSize(14);
+    doc.setTextColor(31, 58, 95);
+    doc.text(`${invoice.amount.toLocaleString()} F`, summaryX + 60, y + 32, { align: "right" });
+    
+    y += 50;
+    
+    // Footer
+    doc.setTextColor(107, 114, 128);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Merci de votre confiance chez SODIPAS!", pageWidth / 2, y, { align: "center" });
+    
+    // Save PDF
+    doc.save(`${invoice.id}.pdf`);
     
     alert(`Facture ${invoice.id} téléchargée!`);
   };
+
+  const formatCurrency = (amount: number) => amount.toLocaleString() + " F";
 
   return (
     <AppLayout>
@@ -279,9 +605,14 @@ Merci de votre confiance chez SODIPAS!
             <div className="p-5">
               <p className="text-sm text-[#6B7280]">Dette actuelle</p>
               <p className={`text-2xl font-bold mt-1 ${mockClient.debt > 0 ? "text-[#C62828]" : "text-[#2E7D32]"}`}>
-                {mockClient.debt.toLocaleString()} F
+                {formatCurrency(mockClient.debt)}
               </p>
-              <p className="text-xs text-[#6B7280] mt-1">Limite: {mockClient.debtLimit.toLocaleString()} F</p>
+              <p className="text-xs text-[#6B7280] mt-1">Limite: {formatCurrency(mockClient.debtLimit)}</p>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-[#6B7280]">Impayé</p>
+              <p className="text-2xl font-bold text-[#C62828] mt-1">{formatCurrency(overdueAmount)}</p>
+              <p className="text-xs text-[#6B7280] mt-1">en retard</p>
             </div>
             <div className="p-5">
               <p className="text-sm text-[#6B7280]">Cageots</p>
@@ -290,13 +621,8 @@ Merci de votre confiance chez SODIPAS!
             </div>
             <div className="p-5">
               <p className="text-sm text-[#6B7280]">Total achats</p>
-              <p className="text-2xl font-bold text-[#1F3A5F] mt-1">{mockClient.totalPurchases.toLocaleString()} F</p>
+              <p className="text-2xl font-bold text-[#1F3A5F] mt-1">{formatCurrency(mockClient.totalPurchases)}</p>
               <p className="text-xs text-[#6B7280] mt-1">depuis le début</p>
-            </div>
-            <div className="p-5">
-              <p className="text-sm text-[#6B7280]">En attente</p>
-              <p className="text-2xl font-bold text-[#B45309] mt-1">{pendingAmount.toLocaleString()} F</p>
-              <p className="text-xs text-[#6B7280] mt-1">de paiement</p>
             </div>
           </div>
         </div>
@@ -366,8 +692,12 @@ Merci de votre confiance chez SODIPAS!
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Facture</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Date limite</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Articles</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Hangar</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Responsable</th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-[#6B7280] uppercase tracking-wider">Montant</th>
+                      <th className="px-6 py-4 text-right text-xs font-medium text-[#6B7280] uppercase tracking-wider">Payé</th>
                       <th className="px-6 py-4 text-center text-xs font-medium text-[#6B7280] uppercase tracking-wider">Statut</th>
                       <th className="px-6 py-4 text-center text-xs font-medium text-[#6B7280] uppercase tracking-wider">Actions</th>
                     </tr>
@@ -377,17 +707,28 @@ Merci de votre confiance chez SODIPAS!
                       <tr key={invoice.id} className="hover:bg-[#F8FAFC] transition-colors">
                         <td className="px-6 py-4 font-medium text-[#1F2937]">{invoice.id}</td>
                         <td className="px-6 py-4 text-[#6B7280]">{invoice.date}</td>
+                        <td className="px-6 py-4 text-[#6B7280]">{invoice.dueDate}</td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             {invoice.items.map((item, idx) => (
                               <p key={idx} className="text-sm text-[#6B7280]">
-                                {item.quantity}x {item.name}
+                                {item.quantity}x {item.name} {item.cageots ? `(${item.cageots} cageots)` : ""}
                               </p>
                             ))}
                           </div>
                         </td>
+                        <td className="px-6 py-4 text-[#6B7280]">
+                          <Badge variant="outline" className="bg-[#F8FAFC] border-[#E5E7EB]">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {invoice.hangar}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-[#6B7280]">{invoice.responsiblePerson}</td>
                         <td className="px-6 py-4 text-right font-semibold text-[#1F2937]">
-                          {invoice.amount.toLocaleString()} F
+                          {formatCurrency(invoice.amount)}
+                        </td>
+                        <td className="px-6 py-4 text-right text-[#6B7280]">
+                          {invoice.paidAmount > 0 ? formatCurrency(invoice.paidAmount) : "-"}
                         </td>
                         <td className="px-6 py-4 text-center">
                           <Badge 
@@ -395,10 +736,11 @@ Merci de votre confiance chez SODIPAS!
                             className={
                               invoice.status === "paid" ? "bg-[#2E7D32]/10 text-[#2E7D32] border-[#2E7D32]/20" :
                               invoice.status === "overdue" ? "bg-[#C62828]/10 text-[#C62828] border-[#C62828]/20" :
+                              invoice.status === "partial" ? "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20" :
                               "bg-[#F9C74F]/10 text-[#B45309] border-[#F9C74F]/20"
                             }
                           >
-                            {invoice.status === "paid" ? "Payée" : invoice.status === "overdue" ? "Impayée" : "En attente"}
+                            {invoice.status === "paid" ? "Payée" : invoice.status === "overdue" ? "Impayée" : invoice.status === "partial" ? "Partielle" : "En attente"}
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -459,6 +801,7 @@ Merci de votre confiance chez SODIPAS!
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Paiement</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Factures</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Mode</th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-[#6B7280] uppercase tracking-wider">Montant</th>
                     </tr>
@@ -469,21 +812,30 @@ Merci de votre confiance chez SODIPAS!
                         <td className="px-6 py-4 font-medium text-[#1F2937]">{payment.id}</td>
                         <td className="px-6 py-4 text-[#6B7280]">{payment.date}</td>
                         <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {payment.invoices.map(invId => (
+                              <Badge key={invId} variant="outline" className="bg-[#F8FAFC] border-[#E5E7EB] text-xs">
+                                {invId}
+                              </Badge>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
                           <Badge variant="outline" className="bg-[#F8FAFC] border-[#E5E7EB]">
                             {payment.method}
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-right font-semibold text-[#2E7D32]">
-                          +{payment.amount.toLocaleString()} F
+                          +{formatCurrency(payment.amount)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="bg-[#F8FAFC] border-t border-[#E5E7EB]">
                     <tr>
-                      <td colSpan={3} className="px-6 py-4 font-medium text-[#1F2937]">Total payé</td>
+                      <td colSpan={4} className="px-6 py-4 font-medium text-[#1F2937]">Total payé</td>
                       <td className="px-6 py-4 text-right font-bold text-[#2E7D32] text-lg">
-                        {totalPaid.toLocaleString()} F
+                        {formatCurrency(totalPaid)}
                       </td>
                     </tr>
                   </tfoot>
@@ -529,44 +881,33 @@ Merci de votre confiance chez SODIPAS!
                 <table className="w-full">
                   <thead className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Mouvement</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">ID</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Date</th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Motif</th>
                       <th className="px-6 py-4 text-right text-xs font-medium text-[#6B7280] uppercase tracking-wider">Quantité</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider">Raison</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB]">
-                    {currentCageots.map((item) => (
-                      <tr key={item.id} className="hover:bg-[#F8FAFC] transition-colors">
-                        <td className="px-6 py-4 font-medium text-[#1F2937]">{item.id}</td>
-                        <td className="px-6 py-4 text-[#6B7280]">{item.date}</td>
+                    {currentCageots.map((cageot) => (
+                      <tr key={cageot.id} className="hover:bg-[#F8FAFC] transition-colors">
+                        <td className="px-6 py-4 font-medium text-[#1F2937]">{cageot.id}</td>
+                        <td className="px-6 py-4 text-[#6B7280]">{cageot.date}</td>
                         <td className="px-6 py-4">
                           <Badge 
                             variant="outline"
-                            className={item.type === "Ajout" 
-                              ? "bg-[#2E7D32]/10 text-[#2E7D32] border-[#2E7D32]/20" 
-                              : "bg-[#C62828]/10 text-[#C62828] border-[#C62828]/20"
-                            }
+                            className={cageot.type === "Ajout" ? "bg-[#2E7D32]/10 text-[#2E7D32] border-[#2E7D32]/20" : "bg-[#C62828]/10 text-[#C62828] border-[#C62828]/20"}
                           >
-                            {item.type}
+                            {cageot.type}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 text-[#6B7280]">{item.reason}</td>
-                        <td className={`px-6 py-4 text-right font-semibold ${item.type === "Ajout" ? "text-[#2E7D32]" : "text-[#C62828]"}`}>
-                          {item.type === "Ajout" ? "+" : "-"}{item.quantity}
+                        <td className={`px-6 py-4 text-right font-semibold ${cageot.type === "Ajout" ? "text-[#2E7D32]" : "text-[#C62828]"}`}>
+                          {cageot.type === "Ajout" ? "+" : "-"}{cageot.quantity}
                         </td>
+                        <td className="px-6 py-4 text-[#6B7280]">{cageot.reason}</td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-[#F8FAFC] border-t border-[#E5E7EB]">
-                    <tr>
-                      <td colSpan={4} className="px-6 py-4 font-medium text-[#1F2937]">Solde actuel</td>
-                      <td className="px-6 py-4 text-right font-bold text-[#1F2937] text-lg">
-                        {cageotsBalance} cageots
-                      </td>
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
               
@@ -602,188 +943,381 @@ Merci de votre confiance chez SODIPAS!
             </div>
           </TabsContent>
         </Tabs>
+      </div>
 
-        {/* Payment Dialog */}
-        <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-xl text-[#1F2937]">Enregistrer un paiement</DialogTitle>
-              <DialogDescription className="text-[#6B7280]">
-                {mockClient.name} • Dette actuelle: {mockClient.debt.toLocaleString()} F
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount" className="text-sm font-medium text-[#1F2937]">Montant (FCFA)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  placeholder="0"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="border-[#E5E7EB]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1F2937]">Mode de paiement</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["Mobile Money", "Virement", "Espèces"].map((method) => (
-                    <Button
-                      key={method}
-                      variant={paymentMethod === method ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPaymentMethod(method)}
-                      style={paymentMethod === method ? { backgroundColor: '#1F3A5F' } : { borderColor: '#E5E7EB' }}
-                      className={paymentMethod !== method ? "text-[#6B7280]" : ""}
-                    >
-                      {method}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
+      {/* Payment Dialog */}
+      <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Enregistrer un paiement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Invoice Selection */}
+            <div className="border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-sm font-medium">Sélectionner les factures à payer</Label>
                 <Button 
-                  variant="outline" 
-                  onClick={() => setIsPaymentOpen(false)}
-                  className="flex-1 border-[#E5E7EB] text-[#6B7280]"
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={selectAllPayableInvoices}
+                  className="text-xs text-[#1F3A5F]"
                 >
-                  Annuler
+                  {selectedInvoices.length === payableInvoices.length ? "Tout désélectionner" : "Tout sélectionner"}
                 </Button>
-                <Button 
-                  onClick={handlePaymentSubmit}
-                  className="flex-1 bg-[#2E7D32] hover:bg-[#2E7D32]/90"
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {payableInvoices.map((invoice) => {
+                  const remainingAmount = invoice.amount - invoice.paidAmount;
+                  return (
+                    <div 
+                      key={invoice.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${selectedInvoices.includes(invoice.id) ? "bg-[#1F3A5F]/10 border-[#1F3A5F]" : "border-[#E5E7EB] hover:bg-[#F8FAFC]"}`}
+                      onClick={() => toggleInvoiceSelection(invoice.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        {selectedInvoices.includes(invoice.id) ? (
+                          <CheckSquare className="h-5 w-5 text-[#1F3A5F]" />
+                        ) : (
+                          <Square className="h-5 w-5 text-[#6B7280]" />
+                        )}
+                        <div>
+                          <p className="font-medium text-[#1F2937]">{invoice.id}</p>
+                          <p className="text-sm text-[#6B7280]">{invoice.date} - {invoice.hangar}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-[#1F2937]">{formatCurrency(remainingAmount)}</p>
+                        {invoice.status === "partial" && (
+                          <p className="text-xs text-[#3B82F6]">dont {formatCurrency(invoice.paidAmount)} déjà payé</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Payment Summary */}
+            <div className="bg-[#F8FAFC] rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-[#6B7280]">Total sélectionné:</span>
+                <span className="text-xl font-bold text-[#1F3A5F]">{formatCurrency(selectedInvoicesTotal)}</span>
+              </div>
+            </div>
+
+            {/* Payment Amount */}
+            <div>
+              <Label htmlFor="paymentAmount">Montant du paiement</Label>
+              <Input
+                id="paymentAmount"
+                type="text"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value.replace(/\D/g, ""))}
+                placeholder="Entrez le montant"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Payment Method */}
+            <div>
+              <Label htmlFor="paymentMethod">Mode de paiement</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner le mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Mobile Money">Mobile Money</SelectItem>
+                  <SelectItem value="Virement">Virement bancaire</SelectItem>
+                  <SelectItem value="Espèces">Espèces</SelectItem>
+                  <SelectItem value="Chèque">Chèque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPaymentOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handlePaymentSubmit}
+              className="bg-[#2E7D32] hover:bg-[#2E7D32]/90"
+              disabled={selectedInvoices.length === 0}
+            >
+              <DollarSign className="mr-2 h-4 w-4" />
+              Enregistrer le paiement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Invoice Dialog */}
+      <Dialog open={isInvoiceOpen} onOpenChange={(open) => {
+        if (!open) resetInvoiceForm();
+        setIsInvoiceOpen(open);
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nouvelle facture</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Invoice Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="hangar">Hangar</Label>
+                <Select value={selectedHangar} onValueChange={setSelectedHangar}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Sélectionner le hangar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockHangars.map(hangar => (
+                      <SelectItem key={hangar} value={hangar}>{hangar}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="dueDate">Date limite de paiement</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={invoiceDueDate}
+                  onChange={(e) => setInvoiceDueDate(e.target.value)}
+                  placeholder="JJ/MM/AAAA"
+                  className="mt-1"
+                />
+                {invoiceType !== "paid" && (
+                  <p className="text-xs text-[#6B7280] mt-1">Date limite requise pour le paiement</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="responsible">Responsable</Label>
+                <Select value={selectedResponsible} onValueChange={setSelectedResponsible}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Sélectionner le responsable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockResponsiblePersons.map(person => (
+                      <SelectItem key={person.name} value={person.name}>{person.name} ({person.hangar})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Invoice Type */}
+            <div>
+              <Label>Type de facture</Label>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <Button
+                  type="button"
+                  variant={invoiceType === "unpaid" ? "default" : "outline"}
+                  onClick={() => setInvoiceType("unpaid")}
+                  className={invoiceType === "unpaid" ? "bg-[#F9C74F] text-[#1F2937] hover:bg-[#F9C74F]/90" : "text-[#6B7280]"}
                 >
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Enregistrer
+                  Non payée
+                </Button>
+                <Button
+                  type="button"
+                  variant={invoiceType === "partial" ? "default" : "outline"}
+                  onClick={() => setInvoiceType("partial")}
+                  className={invoiceType === "partial" ? "bg-[#3B82F6] hover:bg-[#3B82F6]/90" : "text-[#6B7280]"}
+                >
+                  Partiellement payée
+                </Button>
+                <Button
+                  type="button"
+                  variant={invoiceType === "paid" ? "default" : "outline"}
+                  onClick={() => setInvoiceType("paid")}
+                  className={invoiceType === "paid" ? "bg-[#2E7D32] hover:bg-[#2E7D32]/90" : "text-[#6B7280]"}
+                >
+                  Payée
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
 
-        {/* Invoice Dialog */}
-        <Dialog open={isInvoiceOpen} onOpenChange={setIsInvoiceOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-xl text-[#1F2937]">Créer une facture</DialogTitle>
-              <DialogDescription className="text-[#6B7280]">
-                {mockClient.name}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 pt-4">
-              <p className="text-sm text-[#6B7280]">
-                Sélectionnez les articles et quantités pour créer la facture.
-              </p>
-              
-              <div className="rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] p-4">
-                <p className="font-medium text-[#1F2937]">Articles:</p>
-                <div className="mt-2 space-y-2">
-                  {["Bananes plantain", "Bananes douces", "Mangues", "Ananas", "Papayes", "Oranges"].map((item) => (
-                    <div key={item} className="flex items-center justify-between text-sm">
-                      <span className="text-[#6B7280]">{item}</span>
-                      <Input 
-                        type="number" 
-                        placeholder="0" 
-                        className="w-20 h-8 border-[#E5E7EB]"
+            {/* Payment Amount for Partial/Paid */}
+            {invoiceType !== "unpaid" && (
+              <div className="bg-[#F8FAFC] rounded-lg p-4">
+                <Label htmlFor="invoicePaymentAmount">
+                  {invoiceType === "paid" ? "Montant du paiement (total)" : "Montant du paiement partiel"}
+                </Label>
+                <Input
+                  id="invoicePaymentAmount"
+                  type="text"
+                  value={invoicePaymentAmount}
+                  onChange={(e) => setInvoicePaymentAmount(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Entrez le montant"
+                  className="mt-1"
+                />
+                <p className="text-xs text-[#6B7280] mt-1">
+                  Total de la facture: {formatCurrency(invoiceItems.reduce((sum, item) => sum + (item.quantity * item.price), 0))}
+                </p>
+              </div>
+            )}
+
+            {/* Items */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Articles</Label>
+                <Button variant="outline" size="sm" onClick={addInvoiceItem}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Ajouter un article
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {invoiceItems.map((item, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 border rounded-lg">
+                    <div className="col-span-4">
+                      <Label className="text-xs">Article</Label>
+                      <Select 
+                        value={item.name} 
+                        onValueChange={(value) => updateInvoiceItem(index, "name", value)}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mockProducts.map(product => (
+                            <SelectItem key={product.name} value={product.name}>
+                              {product.name} ({formatCurrency(product.price)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-xs">Quantité</Label>
+                      <Input
+                        type="number"
+                        value={item.quantity || ""}
+                        onChange={(e) => updateInvoiceItem(index, "quantity", parseInt(e.target.value) || 0)}
+                        className="h-8"
+                        min="0"
                       />
                     </div>
-                  ))}
-                </div>
+                    <div className="col-span-2">
+                      <Label className="text-xs">P.U (F)</Label>
+                      <Input
+                        type="number"
+                        value={item.price || ""}
+                        onChange={(e) => updateInvoiceItem(index, "price", parseInt(e.target.value) || 0)}
+                        className="h-8"
+                        min="0"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-xs">Cageots</Label>
+                      <Input
+                        type="number"
+                        value={item.cageots || ""}
+                        onChange={(e) => updateInvoiceItem(index, "cageots", parseInt(e.target.value) || 0)}
+                        className="h-8"
+                        min="0"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => removeInvoiceItem(index)}
+                        disabled={invoiceItems.length === 1}
+                        className="h-8 w-full text-[#C62828]"
+                      >
+                        Supprimer
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
 
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsInvoiceOpen(false)}
-                  className="flex-1 border-[#E5E7EB] text-[#6B7280]"
+            {/* Total */}
+            <div className="bg-[#F8FAFC] rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-[#6B7280]">Total:</span>
+                <span className="text-xl font-bold text-[#1F3A5F]">
+                  {formatCurrency(invoiceItems.reduce((sum, item) => sum + (item.quantity * item.price), 0))}
+                </span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsInvoiceOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleInvoiceSubmit}
+              className="bg-[#1F3A5F] hover:bg-[#1F3A5F]/90"
+              disabled={!selectedHangar || !selectedResponsible || invoiceItems.every(item => !item.name || item.quantity <= 0) || (invoiceType !== "paid" && !invoiceDueDate)}
+            >
+              <FilePlus className="mr-2 h-4 w-4" />
+              Générer la facture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cageots Dialog */}
+      <Dialog open={isCageotsOpen} onOpenChange={setIsCageotsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gérer les cageots</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Type d'opération</Label>
+              <div className="flex gap-2 mt-1">
+                <Button
+                  variant={cageotsType === "Ajout" ? "default" : "outline"}
+                  onClick={() => setCageotsType("Ajout")}
+                  className={cageotsType === "Ajout" ? "bg-[#2E7D32]" : "text-[#2E7D32]"}
                 >
-                  Annuler
+                  <Plus className="h-4 w-4 mr-1" />
+                  Ajout
                 </Button>
-                <Button 
-                  onClick={handleInvoiceSubmit}
-                  style={{ backgroundColor: '#1F3A5F' }}
-                  className="flex-1 hover:bg-[#274C77]"
+                <Button
+                  variant={cageotsType === "Retrait" ? "default" : "outline"}
+                  onClick={() => setCageotsType("Retrait")}
+                  className={cageotsType === "Retrait" ? "bg-[#C62828]" : "text-[#C62828]"}
                 >
-                  <FilePlus className="mr-2 h-4 w-4" />
-                  Générer
+                  <Package className="h-4 w-4 mr-1" />
+                  Retrait
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Cageots Dialog */}
-        <Dialog open={isCageotsOpen} onOpenChange={setIsCageotsOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-xl text-[#1F2937]">Gérer les cageots</DialogTitle>
-              <DialogDescription className="text-[#6B7280]">
-                {mockClient.name} • Cageots actuels: {mockClient.cageots}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-[#1F2937]">Type d'opération</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant={cageotsType === "Ajout" ? "default" : "outline"}
-                    onClick={() => setCageotsType("Ajout")}
-                    style={cageotsType === "Ajout" ? { backgroundColor: '#2E7D32' } : { borderColor: '#E5E7EB' }}
-                    className={cageotsType !== "Ajout" ? "text-[#6B7280]" : ""}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Ajout
-                  </Button>
-                  <Button
-                    variant={cageotsType === "Retrait" ? "default" : "outline"}
-                    onClick={() => setCageotsType("Retrait")}
-                    style={cageotsType === "Retrait" ? { backgroundColor: '#C62828' } : { borderColor: '#E5E7EB' }}
-                    className={cageotsType !== "Retrait" ? "text-[#6B7280]" : ""}
-                  >
-                    <Package className="mr-2 h-4 w-4" />
-                    Retrait
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cageotsQty" className="text-sm font-medium text-[#1F2937]">Quantité</Label>
-                <Input
-                  id="cageotsQty"
-                  type="number"
-                  placeholder="0"
-                  value={newCageots}
-                  onChange={(e) => setNewCageots(e.target.value)}
-                  className="border-[#E5E7EB]"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsCageotsOpen(false)}
-                  className="flex-1 border-[#E5E7EB] text-[#6B7280]"
-                >
-                  Annuler
-                </Button>
-                <Button 
-                  onClick={handleCageotsSubmit}
-                  style={cageotsType === "Ajout" ? { backgroundColor: '#2E7D32' } : { backgroundColor: '#C62828' }}
-                  className="flex-1 hover:opacity-90"
-                >
-                  <Package className="mr-2 h-4 w-4" />
-                  Valider
-                </Button>
-              </div>
+            <div>
+              <Label htmlFor="cageotsQuantity">Quantité</Label>
+              <Input
+                id="cageotsQuantity"
+                type="number"
+                value={newCageots}
+                onChange={(e) => setNewCageots(e.target.value.replace(/\D/g, ""))}
+                placeholder="Entrez la quantité"
+                className="mt-1"
+                min="1"
+              />
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="bg-[#F8FAFC] rounded-lg p-3">
+              <p className="text-sm text-[#6B7280]">Solde actuel:</p>
+              <p className="text-2xl font-bold text-[#1F2937]">{cageotsBalance} cageots</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCageotsOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleCageotsSubmit}
+              className={cageotsType === "Ajout" ? "bg-[#2E7D32] hover:bg-[#2E7D32]/90" : "bg-[#C62828] hover:bg-[#C62828]/90"}
+            >
+              {cageotsType === "Ajout" ? "Ajouter" : "Retirer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
