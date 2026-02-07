@@ -14,6 +14,7 @@ import Stocks from "./pages/Stocks";
 import Clients from "./pages/Clients";
 import ClientProfile from "./pages/ClientProfile";
 import Settings from "./pages/Settings";
+import Managers from "./pages/Managers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/managers"
+              element={
+                <ProtectedRoute>
+                  <Managers />
                 </ProtectedRoute>
               }
             />

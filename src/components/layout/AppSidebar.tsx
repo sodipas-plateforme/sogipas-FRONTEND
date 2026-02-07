@@ -1,7 +1,7 @@
-import { LayoutDashboard, Package, Users, Settings, ChevronLeft, ChevronRight, LogOut, User } from "lucide-react";
+import { LayoutDashboard, Package, Users, Settings, ChevronLeft, ChevronRight, LogOut, User, UserCog, Bell, BellRing } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -13,19 +13,69 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { API_ENDPOINTS } from "@/config/api";
 
 const navItems = [
   { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
   { title: "Stocks & Camions", url: "/stocks", icon: Package },
   { title: "Clients", url: "/clients", icon: Users },
+  { title: "Gestionnaires", url: "/managers", icon: UserCog },
   { title: "Paramètres", url: "/settings", icon: Settings },
 ];
 
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchNotifications();
+    }
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS);
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+        setUnreadCount(data.filter((n: Notification) => !n.read).length);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    try {
+      await fetch(`${API_ENDPOINTS.NOTIFICATIONS}/${id}/read`, { method: 'PUT' });
+      fetchNotifications();
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await fetch(`${API_ENDPOINTS.NOTIFICATIONS}/read-all`, { method: 'PUT' });
+      fetchNotifications();
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -112,6 +162,82 @@ export function AppSidebar() {
           );
         })}
       </nav>
+
+      {/* Admin notifications */}
+      {user?.role === 'admin' && (
+        <div className="px-3 pb-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all relative",
+                  "text-white/60 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                {unreadCount > 0 ? (
+                  <BellRing className="h-5 w-5 flex-shrink-0 text-[#F9C74F]" />
+                ) : (
+                  <Bell className="h-5 w-5 flex-shrink-0" />
+                )}
+                {!collapsed && <span>Notifications</span>}
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C62828] text-[10px] font-medium text-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-xs text-[#1F3A5F] hover:underline"
+                  >
+                    Tout marquer comme lu
+                  </button>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {notifications.length === 0 ? (
+                <div className="py-4 text-center text-sm text-[#6B7280]">
+                  Aucune notification
+                </div>
+              ) : (
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.slice(0, 10).map((notification) => (
+                    <DropdownMenuItem
+                      key={notification.id}
+                      onClick={() => markAsRead(notification.id)}
+                      className={cn(
+                        "flex flex-col items-start gap-1 py-3",
+                        !notification.read && "bg-[#F8FAFC]"
+                      )}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium text-[#1F2937]">{notification.title}</span>
+                        {!notification.read && (
+                          <span className="h-2 w-2 rounded-full bg-[#1F3A5F]"></span>
+                        )}
+                      </div>
+                      <span className="text-xs text-[#6B7280]">{notification.message}</span>
+                      <span className="text-xs text-[#9CA3AF]">
+                        {new Date(notification.createdAt).toLocaleDateString('fr-FR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
       {/* User Section */}
       {user && (

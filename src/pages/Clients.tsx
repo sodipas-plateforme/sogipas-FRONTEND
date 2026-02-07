@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
@@ -535,9 +536,16 @@ export default function Clients() {
                     onClick={() => openClientProfile(client.id)}
                   >
                     <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-[#1F2937]">{client.name}</p>
-                        <p className="text-sm text-[#6B7280]">{client.address}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1F3A5F]">
+                          <span className="text-sm font-medium text-white">
+                            {client.name?.split(' ')[0]?.[0]}{client.name?.split(' ')[1]?.[0]}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-[#1F2937]">{client.name}</p>
+                          <p className="text-sm text-[#6B7280]">{client.address}</p>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
