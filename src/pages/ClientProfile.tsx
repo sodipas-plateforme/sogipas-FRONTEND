@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import jsPDF from "jspdf";
 import {  
   ArrowLeft, Phone, FileText, CreditCard, Package, 
   Plus, Download, Send, DollarSign, FilePlus, MapPin, Mail, User,
-  ChevronLeft, ChevronRight, CheckSquare, Square, Building2
+  ChevronLeft, ChevronRight, CheckSquare, Square, Building2, Loader2
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { API_ENDPOINTS } from "@/config/api";
+import { useToast } from "@/hooks/use-toast";
 
 // Types
 interface InvoiceItem {
@@ -61,8 +63,23 @@ interface CageotsHistory {
   reason: string;
 }
 
-// Mock client data
-const mockClient = {
+interface Client {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  debt: number;
+  debtLimit: number;
+  totalPurchases: number;
+  isActive: boolean;
+  cageots: number;
+  lastPurchase: string;
+  createdAt: string;
+}
+
+// Mock data for fallback
+const mockClient: Client = {
   id: "1",
   name: "Moussa Diop",
   phone: "+221 77 123 45 67",
@@ -77,7 +94,6 @@ const mockClient = {
   createdAt: "01/06/2023",
 };
 
-// Mock invoices with enhanced data
 const mockInvoices: Invoice[] = [
   { 
     id: "INV-2024-001", 
@@ -97,103 +113,24 @@ const mockInvoices: Invoice[] = [
     clientPhone: "+221 77 123 45 67",
     clientAddress: "45 Rue Diop, Dakar",
   },
-  { 
-    id: "INV-2024-002", 
-    date: "10/01/2024", 
-    dueDate: "15/01/2024",
-    amount: 320000, 
-    paidAmount: 200000,
-    status: "partial" as const, 
-    items: [
-      { name: "Ananas", quantity: 80, price: 4000, cageots: 16 },
-    ],
-    hangar: "Hangar B",
-    responsiblePerson: "Aminata Diallo",
-    clientId: "1",
-    clientName: "Moussa Diop",
-    clientPhone: "+221 77 123 45 67",
-    clientAddress: "45 Rue Diop, Dakar",
-  },
-  { 
-    id: "INV-2024-003", 
-    date: "05/01/2024", 
-    dueDate: "05/01/2024",
-    amount: 280000, 
-    paidAmount: 280000,
-    status: "paid" as const, 
-    items: [
-      { name: "Oranges", quantity: 140, price: 2000, cageots: 28 },
-    ],
-    hangar: "Hangar A",
-    responsiblePerson: "Mamadou Traoré",
-    clientId: "1",
-    clientName: "Moussa Diop",
-    clientPhone: "+221 77 123 45 67",
-    clientAddress: "45 Rue Diop, Dakar",
-  },
-  { 
-    id: "INV-2023-145", 
-    date: "28/12/2023", 
-    dueDate: "03/01/2024",
-    amount: 520000, 
-    paidAmount: 0,
-    status: "overdue" as const, 
-    items: [
-      { name: "Bananes douces", quantity: 60, price: 4500, cageots: 12 },
-      { name: "Papayes", quantity: 40, price: 7000, cageots: 8 },
-    ],
-    hangar: "Hangar C",
-    responsiblePerson: "Souleymane Barry",
-    clientId: "1",
-    clientName: "Moussa Diop",
-    clientPhone: "+221 77 123 45 67",
-    clientAddress: "45 Rue Diop, Dakar",
-  },
-  { 
-    id: "INV-2023-142", 
-    date: "20/12/2023", 
-    dueDate: "20/12/2023",
-    amount: 185000, 
-    paidAmount: 185000,
-    status: "paid" as const, 
-    items: [
-      { name: "Mangues", quantity: 74, price: 2500, cageots: 15 },
-    ],
-    hangar: "Hangar B",
-    responsiblePerson: "Aminata Diallo",
-    clientId: "1",
-    clientName: "Moussa Diop",
-    clientPhone: "+221 77 123 45 67",
-    clientAddress: "45 Rue Diop, Dakar",
-  },
 ];
 
-// Mock payments
 const mockPayments: Payment[] = [
   { id: "PAY-2024-001", date: "12/01/2024", amount: 320000, method: "Mobile Money", invoices: ["INV-2024-002"] },
-  { id: "PAY-2024-002", date: "06/01/2024", amount: 280000, method: "Virement", invoices: ["INV-2024-003"] },
-  { id: "PAY-2023-156", date: "30/12/2023", amount: 400000, method: "Espèces", invoices: ["INV-2023-142"] },
-  { id: "PAY-2023-150", date: "22/12/2023", amount: 185000, method: "Mobile Money", invoices: ["INV-2023-142"] },
 ];
 
-// Mock cageots history
 const mockCageotsHistory: CageotsHistory[] = [
   { id: "CAG-001", date: "15/01/2024", type: "Ajout", quantity: 10, reason: "Livraison" },
-  { id: "CAG-002", date: "10/01/2024", type: "Retrait", quantity: 5, reason: "Retour client" },
-  { id: "CAG-003", date: "05/01/2024", type: "Ajout", quantity: 15, reason: "Livraison" },
-  { id: "CAG-004", date: "28/12/2023", type: "Retrait", quantity: 8, reason: "Vente" },
-  { id: "CAG-005", date: "20/12/2023", type: "Ajout", quantity: 13, reason: "Livraison" },
 ];
 
-// Mock hangars and responsible persons
-const mockHangars = ["Hangar A", "Hangar B", "Hangar C"];
+const mockHangars = ["Hangar 1", "Hangar 2", "Hangar 3"];
+
 const mockResponsiblePersons = [
-  { name: "Mamadou Traoré", hangar: "Hangar A" },
-  { name: "Aminata Diallo", hangar: "Hangar B" },
-  { name: "Souleymane Barry", hangar: "Hangar C" },
+  { name: "Mamadou Diop", hangar: "Hangar 1" },
+  { name: "Cheikh Ndiaye", hangar: "Hangar 2" },
+  { name: "Bassirou Fall", hangar: "Hangar 3" },
 ];
 
-// Mock products for invoice creation
 const mockProducts = [
   { name: "Bananes plantain", price: 5000 },
   { name: "Bananes douces", price: 4500 },
@@ -210,6 +147,12 @@ const ITEMS_PER_PAGE = 5;
 export default function ClientProfile() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [client, setClient] = useState<Client | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [cageotsHistory, setCageotsHistory] = useState<CageotsHistory[]>([]);
   
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
@@ -233,44 +176,103 @@ export default function ClientProfile() {
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [cageotsPage, setCageotsPage] = useState(1);
   
+  // Fetch client data from API
+  useEffect(() => {
+    const fetchClientData = async () => {
+      if (!id) {
+        navigate('/clients');
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        
+        // Fetch client
+        const clientResponse = await fetch(`${API_ENDPOINTS.CLIENTS}/${id}`);
+        if (clientResponse.ok) {
+          const clientData = await clientResponse.json();
+          setClient({
+            id: clientData.id?.toString() || id,
+            name: clientData.name || "",
+            phone: clientData.phone || "",
+            email: clientData.email || "",
+            address: clientData.address || "",
+            debt: clientData.debt || 0,
+            debtLimit: clientData.debtLimit || 500000,
+            totalPurchases: clientData.totalPurchases || 0,
+            isActive: clientData.status !== "critical" && clientData.status !== "blocked",
+            cageots: clientData.cageots || 0,
+            lastPurchase: clientData.lastPurchase || "",
+            createdAt: clientData.createdAt || new Date().toLocaleDateString("fr-FR"),
+          });
+        } else {
+          setClient(mockClient);
+        }
+        
+        // For now, use mock data for invoices, payments, and cageots
+        // In a real app, these would come from the API
+        setInvoices(mockInvoices);
+        setPayments(mockPayments);
+        setCageotsHistory(mockCageotsHistory);
+        
+      } catch (error) {
+        console.error("Error fetching client data:", error);
+        setClient(mockClient);
+        setInvoices(mockInvoices);
+        setPayments(mockPayments);
+        setCageotsHistory(mockCageotsHistory);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClientData();
+  }, [id, navigate]);
+  
+  // Use mock client if not loaded yet
+  const currentClient = client || mockClient;
+  const currentInvoices = invoices.length > 0 ? invoices : mockInvoices;
+  const currentPayments = payments.length > 0 ? payments : mockPayments;
+  const currentCageotsHistory = cageotsHistory.length > 0 ? cageotsHistory : mockCageotsHistory;
+  
   // Calculate pagination for invoices
-  const totalInvoicesPages = Math.ceil(mockInvoices.length / ITEMS_PER_PAGE);
+  const totalInvoicesPages = Math.ceil(currentInvoices.length / ITEMS_PER_PAGE);
   const startInvoicesIndex = (invoicesPage - 1) * ITEMS_PER_PAGE;
   const endInvoicesIndex = startInvoicesIndex + ITEMS_PER_PAGE;
-  const currentInvoices = mockInvoices.slice(startInvoicesIndex, endInvoicesIndex);
+  const displayedInvoices = currentInvoices.slice(startInvoicesIndex, endInvoicesIndex);
   
   // Calculate pagination for payments
-  const totalPaymentsPages = Math.ceil(mockPayments.length / ITEMS_PER_PAGE);
+  const totalPaymentsPages = Math.ceil(currentPayments.length / ITEMS_PER_PAGE);
   const startPaymentsIndex = (paymentsPage - 1) * ITEMS_PER_PAGE;
   const endPaymentsIndex = startPaymentsIndex + ITEMS_PER_PAGE;
-  const currentPayments = mockPayments.slice(startPaymentsIndex, endPaymentsIndex);
+  const displayedPayments = currentPayments.slice(startPaymentsIndex, endPaymentsIndex);
   
   // Calculate pagination for cageots
-  const totalCageotsPages = Math.ceil(mockCageotsHistory.length / ITEMS_PER_PAGE);
+  const totalCageotsPages = Math.ceil(currentCageotsHistory.length / ITEMS_PER_PAGE);
   const startCageotsIndex = (cageotsPage - 1) * ITEMS_PER_PAGE;
   const endCageotsIndex = startCageotsIndex + ITEMS_PER_PAGE;
-  const currentCageots = mockCageotsHistory.slice(startCageotsIndex, endCageotsIndex);
+  const displayedCageots = currentCageotsHistory.slice(startCageotsIndex, endCageotsIndex);
   
   // Calculate totals
-  const totalPaid = mockPayments.reduce((sum, p) => sum + p.amount, 0);
-  const overdueAmount = mockInvoices.filter(i => i.status === "overdue").reduce((sum, i) => sum + i.amount, 0);
-  const cageotsBalance = mockClient.cageots;
+  const totalPaid = currentPayments.reduce((sum, p) => sum + p.amount, 0);
+  const overdueAmount = currentInvoices.filter(i => i.status === "overdue").reduce((sum, i) => sum + i.amount, 0);
+  const cageotsBalance = currentClient.cageots;
 
   // Get unpaid/partial invoices for payment
-  const payableInvoices = mockInvoices.filter(i => i.status === "pending" || i.status === "partial");
+  const payableInvoices = currentInvoices.filter(i => i.status === "pending" || i.status === "partial");
 
   // Calculate selected invoices total
   const selectedInvoicesTotal = selectedInvoices.reduce((sum, invId) => {
-    const invoice = mockInvoices.find(i => i.id === invId);
+    const invoice = currentInvoices.find(i => i.id === invId);
     return sum + (invoice ? invoice.amount - invoice.paidAmount : 0);
   }, 0);
 
   const sendWhatsApp = () => {
-    const statusText = mockClient.isActive ? "Actif" : "Bloqué";
+    const statusText = currentClient.isActive ? "Actif" : "Bloqué";
     const message = encodeURIComponent(
-      `Bonjour ${mockClient.name},\n\nVotre situation chez SODIPAS au ${new Date().toLocaleDateString("fr-FR")}:\n- Statut: ${statusText}\n- Dette: ${mockClient.debt > 0 ? mockClient.debt.toLocaleString() + " F" : "Aucune"}\n- Cageots: ${mockClient.cageots}\n\nMerci de votre confiance.`
+      `Bonjour ${currentClient.name},\n\nVotre situation chez SODIPAS au ${new Date().toLocaleDateString("fr-FR")}:\n- Statut: ${statusText}\n- Dette: ${currentClient.debt > 0 ? currentClient.debt.toLocaleString() + " F" : "Aucune"}\n- Cageots: ${currentClient.cageots}\n\nMerci de votre confiance.`
     );
-    window.open(`https://wa.me/${mockClient.phone}?text=${message}`, "_blank");
+    window.open(`https://wa.me/${currentClient.phone}?text=${message}`, "_blank");
   };
 
   const handlePaymentSubmit = () => {
@@ -549,110 +551,123 @@ export default function ClientProfile() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Back button */}
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate(-1)}
-          className="text-[#6B7280] hover:text-[#1F2937] pl-0"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour
-        </Button>
+        {/* Loading Spinner */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-[#1F3A5F]" />
+            <span className="ml-2 text-[#6B7280]">Chargement...</span>
+          </div>
+        )}
 
-        {/* Client Header Card */}
-        <div className="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-[#1F3A5F] to-[#274C77] p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
-                  <User className="h-8 w-8 text-white" />
+        {/* Back button */}
+        {!loading && (
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate(-1)}
+            className="text-[#6B7280] hover:text-[#1F2937] pl-0"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour
+          </Button>
+        )}
+
+        {/* Client Header Card and Content */}
+        {!loading && (
+          <>
+            {/* Client Header Card */}
+            <div className="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-r from-[#1F3A5F] to-[#274C77] p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
+                      <User className="h-8 w-8 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold text-white">{currentClient.name}</h1>
+                      <div className="flex items-center gap-4 mt-1">
+                        <Badge className="bg-white/20 text-white border-white/30">
+                          Client #{currentClient.id}
+                        </Badge>
+                        <span className="text-white/80 text-sm">
+                          Créé le {currentClient.createdAt}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <Badge 
+                    className={currentClient.isActive 
+                      ? "bg-[#2E7D32] text-white border-0" 
+                      : "bg-[#C62828] text-white border-0"
+                    }
+                    variant="outline"
+                  >
+                    {currentClient.isActive ? "Actif" : "Bloqué"}
+                  </Badge>
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-white">{mockClient.name}</h1>
-                  <div className="flex items-center gap-4 mt-1">
-                    <Badge className="bg-white/20 text-white border-white/30">
-                      Client #{mockClient.id}
-                    </Badge>
-                    <span className="text-white/80 text-sm">
-                      Créé le {mockClient.createdAt}
-                    </span>
+              </div>
+              
+              {/* Contact Info */}
+              <div className="p-6 border-b border-[#E5E7EB]">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F8FAFC]">
+                      <Phone className="h-5 w-5 text-[#1F3A5F]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B7280]">Téléphone</p>
+                      <p className="font-medium text-[#1F2937]">{currentClient.phone}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F8FAFC]">
+                      <Mail className="h-5 w-5 text-[#1F3A5F]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B7280]">Email</p>
+                      <p className="font-medium text-[#1F2937]">{currentClient.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F8FAFC]">
+                      <MapPin className="h-5 w-5 text-[#1F3A5F]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6B7280]">Adresse</p>
+                      <p className="font-medium text-[#1F2937]">{currentClient.address}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-              <Badge 
-                className={mockClient.isActive 
-                  ? "bg-[#2E7D32] text-white border-0" 
-                  : "bg-[#C62828] text-white border-0"
-                }
-                variant="outline"
-              >
-                {mockClient.isActive ? "Actif" : "Bloqué"}
-              </Badge>
-            </div>
-          </div>
-          
-          {/* Contact Info */}
-          <div className="p-6 border-b border-[#E5E7EB]">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F8FAFC]">
-                  <Phone className="h-5 w-5 text-[#1F3A5F]" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#6B7280]">Téléphone</p>
-                  <p className="font-medium text-[#1F2937]">{mockClient.phone}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F8FAFC]">
-                  <Mail className="h-5 w-5 text-[#1F3A5F]" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#6B7280]">Email</p>
-                  <p className="font-medium text-[#1F2937]">{mockClient.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F8FAFC]">
-                  <MapPin className="h-5 w-5 text-[#1F3A5F]" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#6B7280]">Adresse</p>
-                  <p className="font-medium text-[#1F2937]">{mockClient.address}</p>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#E5E7EB]">
-            <div className="p-5">
-              <p className="text-sm text-[#6B7280]">Dette actuelle</p>
-              <p className={`text-2xl font-bold mt-1 ${mockClient.debt > 0 ? "text-[#C62828]" : "text-[#2E7D32]"}`}>
-                {formatCurrency(mockClient.debt)}
-              </p>
-              <p className="text-xs text-[#6B7280] mt-1">Limite: {formatCurrency(mockClient.debtLimit)}</p>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[#E5E7EB]">
+                <div className="p-5">
+                  <p className="text-sm text-[#6B7280]">Dette actuelle</p>
+                  <p className={`text-2xl font-bold mt-1 ${currentClient.debt > 0 ? "text-[#C62828]" : "text-[#2E7D32]"}`}>
+                    {formatCurrency(currentClient.debt)}
+                  </p>
+                  <p className="text-xs text-[#6B7280] mt-1">Limite: {formatCurrency(currentClient.debtLimit)}</p>
+                </div>
+                <div className="p-5">
+                  <p className="text-sm text-[#6B7280]">Impayé</p>
+                  <p className="text-2xl font-bold text-[#C62828] mt-1">{formatCurrency(overdueAmount)}</p>
+                  <p className="text-xs text-[#6B7280] mt-1">en retard</p>
+                </div>
+                <div className="p-5">
+                  <p className="text-sm text-[#6B7280]">Cageots</p>
+                  <p className="text-2xl font-bold text-[#1F2937] mt-1">{cageotsBalance}</p>
+                  <p className="text-xs text-[#6B7280] mt-1">consignés</p>
+                </div>
+                <div className="p-5">
+                  <p className="text-sm text-[#6B7280]">Total achats</p>
+                  <p className="text-2xl font-bold text-[#1F3A5F] mt-1">{formatCurrency(currentClient.totalPurchases)}</p>
+                  <p className="text-xs text-[#6B7280] mt-1">depuis le début</p>
+                </div>
+              </div>
             </div>
-            <div className="p-5">
-              <p className="text-sm text-[#6B7280]">Impayé</p>
-              <p className="text-2xl font-bold text-[#C62828] mt-1">{formatCurrency(overdueAmount)}</p>
-              <p className="text-xs text-[#6B7280] mt-1">en retard</p>
-            </div>
-            <div className="p-5">
-              <p className="text-sm text-[#6B7280]">Cageots</p>
-              <p className="text-2xl font-bold text-[#1F2937] mt-1">{cageotsBalance}</p>
-              <p className="text-xs text-[#6B7280] mt-1">consignés</p>
-            </div>
-            <div className="p-5">
-              <p className="text-sm text-[#6B7280]">Total achats</p>
-              <p className="text-2xl font-bold text-[#1F3A5F] mt-1">{formatCurrency(mockClient.totalPurchases)}</p>
-              <p className="text-xs text-[#6B7280] mt-1">depuis le début</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Button 
             onClick={() => setIsPaymentOpen(true)}
             className="bg-[#2E7D32] hover:bg-[#2E7D32]/90"
@@ -913,7 +928,7 @@ export default function ClientProfile() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E7EB]">
-                    {currentCageots.map((cageot) => (
+                    {displayedCageots.map((cageot) => (
                       <tr key={cageot.id} className="hover:bg-[#F8FAFC] transition-colors">
                         <td className="px-6 py-4 font-medium text-[#1F2937]">{cageot.id}</td>
                         <td className="px-6 py-4 text-[#6B7280]">{cageot.date}</td>
@@ -967,7 +982,8 @@ export default function ClientProfile() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+        </>
+      )}
 
       {/* Payment Dialog */}
       <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
@@ -1342,6 +1358,7 @@ export default function ClientProfile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </AppLayout>
   );
 }
