@@ -403,57 +403,73 @@ export default function ClientProfile() {
     const margin = 15;
     let y = 20;
     
-    // Header with blue background (#1F3A5F)
+    // Header - Company Info
     doc.setFillColor(31, 58, 95);
-    doc.rect(0, 0, pageWidth, 40, "F");
+    doc.rect(0, 0, pageWidth, 45, "F");
     
-    // SODIPAS text in white
+    // Company name (white)
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
+    doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text("SODIPAS", margin, 25);
+    doc.text("SODIPAS SARL", margin, 20);
     
-    // Invoice number in top right
-    doc.setFontSize(12);
+    // Company details (white, smaller)
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Facture N° ${invoice.id}`, pageWidth - margin, 20, { align: "right" });
-    doc.text(invoice.date, pageWidth - margin, 28, { align: "right" });
+    doc.text("Immeuble Macal, Liberté 6 Extension VDN", margin, 28);
+    doc.text("NINEA: 00898900R | RC: SN DKR 5 49981", margin, 34);
+    doc.text("Tél: 77 650 09 77 / 76 468 95 35 | Dakar - Sénégal", margin, 40);
+    
+    // Invoice info block (right side)
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(pageWidth - margin - 65, 10, 65, 30, 2, 2, "F");
+    
+    doc.setTextColor(31, 58, 95);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("FACTURE", pageWidth - margin - 32, 18, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(`N°: ${invoice.id}`, pageWidth - margin - 5, 26, { align: "right" });
+    doc.text(`Date: ${invoice.date}`, pageWidth - margin - 5, 33, { align: "right" });
     
     y = 55;
     
-    // Client Info Section with light blue background
+    // Client Info Section
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, y, pageWidth - margin * 2, 35, 3, 3, "F");
+    doc.roundedRect(margin, y, pageWidth - margin * 2, 25, 2, 2, "F");
     
     doc.setTextColor(31, 58, 95);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("INFORMATIONS CLIENT", margin + 5, y + 10);
-    
-    doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("INFORMATIONS CLIENT", margin + 5, y + 8);
+    
     doc.setFont("helvetica", "normal");
-    doc.text(`Client: ${invoice.clientName}`, margin + 5, y + 18);
-    doc.text(`Téléphone: ${invoice.clientPhone}`, margin + 5, y + 26);
-    doc.text(`Adresse: ${invoice.clientAddress}`, pageWidth / 2, y + 18);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.text(`Client: ${invoice.clientName}`, margin + 5, y + 16);
+    doc.text(`Téléphone: ${invoice.clientPhone}`, pageWidth / 2, y + 16);
+    doc.text(`Adresse: ${invoice.clientAddress}`, margin + 5, y + 22);
     
-    y += 45;
+    y += 35;
     
-    // Products Table Header
+    // Articles Table Header
     doc.setFillColor(31, 58, 95);
     doc.rect(margin, y, pageWidth - margin * 2, 10, "F");
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("Désignation", margin + 5, y + 7);
-    doc.text("Qté", pageWidth / 2 - 20, y + 7, { align: "center" });
-    doc.text("Prix Unitaire", pageWidth / 2 + 20, y + 7, { align: "center" });
-    doc.text("Total", pageWidth - margin - 5, y + 7, { align: "right" });
+    doc.text("QTE", margin + 8, y + 7);
+    doc.text("DESIGNATION", margin + 35, y + 7);
+    doc.text("PRIX UNITAIRE", pageWidth / 2 + 10, y + 7, { align: "center" });
+    doc.text("MONTANT", pageWidth - margin - 8, y + 7, { align: "right" });
     
     y += 10;
     
-    // Products
+    // Articles
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
@@ -468,51 +484,59 @@ export default function ClientProfile() {
       const unitPrice = item.price.toLocaleString();
       const itemTotal = (item.quantity * item.price).toLocaleString();
       
-      doc.text(item.name, margin + 5, y + 7);
-      doc.text(item.quantity.toString(), pageWidth / 2 - 20, y + 7, { align: "center" });
-      doc.text(`${unitPrice} F`, pageWidth / 2 + 20, y + 7, { align: "center" });
-      doc.text(`${itemTotal} F`, pageWidth - margin - 5, y + 7, { align: "right" });
+      doc.text(item.quantity.toString(), margin + 8, y + 7);
+      doc.text(item.name, margin + 35, y + 7);
+      doc.text(`${unitPrice} F`, pageWidth / 2 + 10, y + 7, { align: "center" });
+      doc.text(`${itemTotal} F`, pageWidth - margin - 8, y + 7, { align: "right" });
       
       y += 10;
     });
     
     y += 5;
     
-    // Payment Info Section
-    doc.setTextColor(107, 114, 128);
-    doc.setFontSize(9);
-    doc.text(`Paiement: ${invoice.status === "paid" ? "Payé" : invoice.status === "partial" ? "Partiel" : invoice.status === "overdue" ? "Impayé" : "En attente"}`, margin, y);
+    // Total Section
+    const totalX = pageWidth - margin - 50;
+    doc.setFillColor(31, 58, 95);
+    doc.roundedRect(totalX, y, 55, 12, 2, 2, "F");
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("TOTAL", totalX + 5, y + 8);
+    
+    doc.setFontSize(12);
+    doc.text(`${invoice.amount.toLocaleString()} F`, pageWidth - margin - 5, y + 8, { align: "right" });
+    
+    y += 20;
+    
+    // Payment Conditions
+    doc.setTextColor(31, 58, 95);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("CONDITIONS DE PAIEMENT", margin, y);
     
     y += 8;
     
-    // Summary Section
-    const summaryX = pageWidth - margin - 60;
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(summaryX, y, 65, 40, 2, 2, "F");
-    
-    doc.setTextColor(107, 114, 128);
-    doc.setFontSize(9);
-    doc.text("Montant", summaryX + 5, y + 10);
-    doc.text("Réduction", summaryX + 5, y + 20);
-    doc.setFontSize(11);
-    doc.text("Total", summaryX + 5, y + 32);
-    
     doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(`${invoice.amount.toLocaleString()} F`, summaryX + 60, y + 10, { align: "right" });
-    doc.text("0 F", summaryX + 60, y + 20, { align: "right" });
-    doc.setFontSize(14);
-    doc.setTextColor(31, 58, 95);
-    doc.text(`${invoice.amount.toLocaleString()} F`, summaryX + 60, y + 32, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Date de paiement : 7 jours après facturation", margin, y);
     
-    y += 50;
+    y += 8;
+    doc.setTextColor(31, 58, 95);
+    doc.text("NB : Les marchandises vendues ne sont ni reprises ni échangées", margin, y);
+    
+    y += 15;
     
     // Footer
+    doc.setDrawColor(31, 58, 95);
+    doc.line(margin, y, pageWidth - margin, y);
+    
     doc.setTextColor(107, 114, 128);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text("Merci de votre confiance chez SODIPAS!", pageWidth / 2, y, { align: "center" });
+    doc.text("Merci de votre confiance - SODIPAS SARL | Dakar, Sénégal", pageWidth / 2, y + 10, { align: "center" });
+    doc.text("Siège: Immeuble Macal, Liberté 6 Extension VDN | Tél: 77 650 09 77", pageWidth / 2, y + 16, { align: "center" });
     
     // Save PDF
     doc.save(`${invoice.id}.pdf`);
