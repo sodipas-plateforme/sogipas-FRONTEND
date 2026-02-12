@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, Users, Settings, ChevronLeft, ChevronRight, LogOut, User, UserCog, Bell, BellRing } from "lucide-react";
+import { LayoutDashboard, Package, Users, Settings, ChevronLeft, ChevronRight, LogOut, User, UserCog, Bell, BellRing, DollarSign, UserPlus, History, Lock } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -14,14 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { API_ENDPOINTS } from "@/config/api";
-
-const navItems = [
-  { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
-  { title: "Stocks & Camions", url: "/stocks", icon: Package },
-  { title: "Clients", url: "/clients", icon: Users },
-  { title: "Gestionnaires", url: "/managers", icon: UserCog },
-  { title: "Paramètres", url: "/settings", icon: Settings },
-];
 
 interface Notification {
   id: string;
@@ -45,6 +37,47 @@ export function AppSidebar() {
       fetchNotifications();
     }
   }, [user]);
+
+  // Filter nav items based on user role - organized by priority
+  const filteredNavItems = user ? [
+    // Admin items
+    ...(user.role === 'admin' ? [
+      { title: "Tableau de bord", url: "/", icon: LayoutDashboard, allowedRoles: ["admin"] },
+      { title: "Stocks & Camions", url: "/stocks", icon: Package, allowedRoles: ["admin"] },
+      { title: "Gestion des utilisateurs", url: "/managers", icon: UserCog, allowedRoles: ["admin"] },
+      { title: "Clients", url: "/clients", icon: Users, allowedRoles: ["admin"] },
+      { title: "Paramètres", url: "/settings", icon: Settings, allowedRoles: ["admin"] },
+    ] : []),
+    // Manager items
+    ...(user.role === 'manager' ? [
+      { title: "Tableau de bord", url: "/", icon: LayoutDashboard, allowedRoles: ["manager"] },
+      { title: "Gestion caissier", url: "/cashiers/create", icon: UserPlus, allowedRoles: ["manager"] },
+      { title: "Stocks & Camions", url: "/stocks", icon: Package, allowedRoles: ["manager"] },
+      { title: "Clients", url: "/clients", icon: Users, allowedRoles: ["manager"] },
+    ] : []),
+    // Cashier items - grouped together
+    ...(user.role === 'cashier' ? [
+      { title: "Tableau de bord", url: "/", icon: LayoutDashboard, allowedRoles: ["cashier"] },
+      { title: "Caisse", url: "/caisse", icon: DollarSign, allowedRoles: ["cashier"] },
+      { title: "Transactions", url: "/caisse/transactions", icon: History, allowedRoles: ["cashier"] },
+      { title: "Clôture", url: "/caisse/cloture", icon: Lock, allowedRoles: ["cashier"] },
+      { title: "Clients", url: "/clients", icon: Users, allowedRoles: ["cashier"] },
+    ] : []),
+    // Accountant items
+    ...(user.role === 'accountant' ? [
+      { title: "Tableau de bord", url: "/", icon: LayoutDashboard, allowedRoles: ["accountant"] },
+      { title: "Clients", url: "/clients", icon: Users, allowedRoles: ["accountant"] },
+    ] : []),
+    // Warehouse items
+    ...(user.role === 'warehouse' ? [
+      { title: "Tableau de bord", url: "/", icon: LayoutDashboard, allowedRoles: ["warehouse"] },
+      { title: "Stocks & Camions", url: "/stocks", icon: Package, allowedRoles: ["warehouse"] },
+    ] : []),
+    // Viewer items
+    ...(user.role === 'viewer' ? [
+      { title: "Tableau de bord", url: "/", icon: LayoutDashboard, allowedRoles: ["viewer"] },
+    ] : []),
+  ] : [];
 
   const fetchNotifications = async () => {
     try {
@@ -97,6 +130,7 @@ export function AppSidebar() {
       manager: "Gestionnaire",
       accountant: "Comptable",
       warehouse: "Responsable Hangar",
+      cashier: "Caissier",
       viewer: "Consultation",
     };
     return roles[role] || role;
@@ -138,7 +172,7 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-3">
-        {navItems.map((item) => {
+        {filteredNavItems.map((item) => {
           const isActive = location.pathname === item.url;
           return (
             <NavLink
@@ -265,6 +299,9 @@ export function AppSidebar() {
                   <div className="flex-1 text-left">
                     <p className="font-medium text-white truncate">{user.name}</p>
                     <p className="text-xs text-white/60 truncate">{getRoleLabel(user.role)}</p>
+                    {user.hangar && (
+                      <p className="text-xs text-white/40 truncate">{user.hangar}</p>
+                    )}
                   </div>
                 )}
               </button>
@@ -274,6 +311,10 @@ export function AppSidebar() {
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium">{user.name}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
+                  <p className="text-xs text-muted-foreground">{getRoleLabel(user.role)}</p>
+                  {user.hangar && (
+                    <p className="text-xs text-muted-foreground">{user.hangar}</p>
+                  )}
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -281,11 +322,15 @@ export function AppSidebar() {
                 <User className="mr-2 h-4 w-4" />
                 Mon profil
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                Paramètres
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {user.role === 'admin' && (
+                <>
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Paramètres
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem 
                 onClick={() => handleLogout()} 
                 className="text-red-600 focus:text-red-600 cursor-pointer"

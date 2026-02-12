@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { API_ENDPOINTS } from "@/config/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +69,7 @@ const ITEMS_PER_PAGE = 8;
 export default function Clients() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddClientOpen, setIsAddClientOpen] = useState(false);
   const [isEditClientOpen, setIsEditClientOpen] = useState(false);
@@ -380,14 +382,16 @@ export default function Clients() {
             <h1 className="text-2xl font-bold text-[#1F2937]">Clients</h1>
             <p className="text-sm text-[#6B7280]">Gestion des clients et suivi des créances</p>
           </div>
-          <Button 
-            onClick={() => setIsAddClientOpen(true)}
-            style={{ backgroundColor: '#1F3A5F' }}
-            className="hover:bg-[#274C77]"
-          >
-            <UserPlus className="mr-2 h-4 w-4" />
-            Enregistrer un client
-          </Button>
+          {user?.role !== 'cashier' && (
+            <Button 
+              onClick={() => setIsAddClientOpen(true)}
+              style={{ backgroundColor: '#1F3A5F' }}
+              className="hover:bg-[#274C77]"
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Enregistrer un client
+            </Button>
+          )}
         </div>
 
         {/* KPI Cards - Same style as Dashboard */}
@@ -573,15 +577,17 @@ export default function Clients() {
                     </td>
                     <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditClient(client)}
-                          className="text-[#1F3A5F] hover:text-[#1F3A5F] hover:bg-[#1F3A5F]/10"
-                          title="Modifier"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
+                        {user?.role !== 'cashier' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClient(client)}
+                            className="text-[#1F3A5F] hover:text-[#1F3A5F] hover:bg-[#1F3A5F]/10"
+                            title="Modifier"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -591,15 +597,17 @@ export default function Clients() {
                         >
                           <MessageCircle className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteClient(client.id, client.name)}
-                          className="text-[#C62828] hover:text-[#C62828] hover:bg-[#C62828]/10"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {user?.role !== 'cashier' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClient(client.id, client.name)}
+                            className="text-[#C62828] hover:text-[#C62828] hover:bg-[#C62828]/10"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

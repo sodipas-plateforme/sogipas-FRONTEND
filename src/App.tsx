@@ -15,6 +15,10 @@ import Clients from "./pages/Clients";
 import ClientProfile from "./pages/ClientProfile";
 import Settings from "./pages/Settings";
 import Managers from "./pages/Managers";
+import CashierCreation from "./pages/CashierCreation";
+import CashierDashboard from "./pages/CashierDashboard";
+import CashierTransactions from "./pages/CashierTransactions";
+import CashierClosure from "./pages/CashierClosure";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +35,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/verify-otp" element={<VerifyOtp />} />
 
-            {/* Protected routes */}
+            {/* Protected routes - Accessible by all authenticated users */}
             <Route
               path="/"
               element={
@@ -51,7 +55,7 @@ const App = () => (
             <Route
               path="/clients"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin", "manager", "accountant", "cashier"]}>
                   <Clients />
                 </ProtectedRoute>
               }
@@ -59,7 +63,7 @@ const App = () => (
             <Route
               path="/clients/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin", "manager", "accountant", "cashier"]}>
                   <ClientProfile />
                 </ProtectedRoute>
               }
@@ -67,7 +71,7 @@ const App = () => (
             <Route
               path="/settings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <Settings />
                 </ProtectedRoute>
               }
@@ -75,8 +79,41 @@ const App = () => (
             <Route
               path="/managers"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <Managers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cashiers/create"
+              element={
+                <ProtectedRoute allowedRoles={["manager"]}>
+                  <CashierCreation />
+                </ProtectedRoute>
+              }
+            />
+            {/* Cashier Routes */}
+            <Route
+              path="/caisse"
+              element={
+                <ProtectedRoute allowedRoles={["cashier"]}>
+                  <CashierDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/caisse/transactions"
+              element={
+                <ProtectedRoute allowedRoles={["cashier"]}>
+                  <CashierTransactions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/caisse/cloture"
+              element={
+                <ProtectedRoute allowedRoles={["cashier"]}>
+                  <CashierClosure />
                 </ProtectedRoute>
               }
             />
@@ -91,3 +128,4 @@ const App = () => (
 );
 
 export default App;
+

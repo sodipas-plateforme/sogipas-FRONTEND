@@ -95,24 +95,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Image/Illustration */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#1F3A5F] via-[#274C77] to-[#1F3A5F] overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <defs>
-              <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
-              </pattern>
-            </defs>
-            <rect width="100" height="100" fill="url(#grid)" />
-          </svg>
-        </div>
-        
-        {/* Decorative Circles */}
-        <div className="absolute top-20 left-20 w-80 h-80 bg-[#F9C74F]/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-[500px] h-[500px] bg-[#F9C74F]/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#F9C74F]/5 rounded-full blur-3xl" />
-        
+      <div className="hidden lg:flex lg:w-1/2 relative bg-[#1F3A5F] overflow-hidden">
         {/* Content */}
         <div className="relative z-10 flex flex-col w-full h-full p-12 text-white">
           {/* Logo */}
@@ -135,7 +118,7 @@ export default function Login() {
           {/* Trust Indicators */}
           <div className="mt-auto flex items-center gap-6 text-base text-slate-400 pb-2">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-[#2E7D32] animate-pulse" />
+              <div className="h-2 w-2 rounded-full bg-[#2E7D32]" />
               <span>Connexion sécurisée</span>
             </div>
             <div className="h-4 w-px bg-slate-600" />
