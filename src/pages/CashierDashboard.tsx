@@ -6,6 +6,14 @@ import {
   TrendingUp, Clock, AlertCircle, CheckCircle,
   RefreshCw, Download, Lock
 } from "lucide-react";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -82,6 +90,9 @@ export default function CashierDashboard() {
   const [isDayClosed, setIsDayClosed] = useState(false);
   const [closure, setClosure] = useState<DailyClosure | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [recentClients, setRecentClients] = useState<Client[]>([]);
+  const [quickPayOpen, setQuickPayOpen] = useState(false);
+  const [quickPayAmount, setQuickPayAmount] = useState("");
   
   // Dialog states
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -164,6 +175,12 @@ export default function CashierDashboard() {
     setPaymentOpen(true);
   };
 
+  const handleQuickPay = (client: Client) => {
+    setSelectedClient(client);
+    setQuickPayAmount(client.debt > 0 ? client.debt.toString() : "");
+    setQuickPayOpen(true);
+  };
+
   const handleInvoice = (client: Client) => {
     setSelectedClient(client);
     setInvoiceOpen(true);
@@ -172,6 +189,15 @@ export default function CashierDashboard() {
   const handleCageots = (client: Client) => {
     setSelectedClient(client);
     setCageotsOpen(true);
+  };
+
+  const handleSelectClient = (client: Client) => {
+    setSelectedClient(client);
+    // Add to recent clients (max 5)
+    setRecentClients(prev => {
+      const filtered = prev.filter(c => c.id !== client.id);
+      return [client, ...filtered].slice(0, 5);
+    });
   };
 
   const handleDetails = (client: Client) => {
@@ -290,7 +316,12 @@ export default function CashierDashboard() {
               {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            {/* Hangar indicator */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#1F3A5F]/10 rounded-lg">
+              <Package className="h-4 w-4 text-[#1F3A5F]" />
+              <span className="text-sm font-medium text-[#1F3A5F]">{user?.hangar || "Hangar 1"}</span>
+            </div>
             {closure?.status === "open" ? (
               <Button onClick={handleCloseDay} className="bg-[#2E7D32] hover:bg-[#2E7D32]/90">
                 <Lock className="mr-2 h-4 w-4" />Clôturer la journée
@@ -305,6 +336,68 @@ export default function CashierDashboard() {
             </Button>
           </div>
         </div>
+
+        {/* Quick Actions Toolbar */}
+        <div className="bg-[#F8FAFC] rounded-lg p-4 border border-[#E5E7EB]">
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[#6B7280]">Actions rapides:</span>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/clients')}
+                className="border-[#E5E7EB] text-[#1F3A5F] hover:bg-[#F8FAFC]"
+              >
+                <Users className="mr-2 h-4 w-4" />Nouveau client
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/caisse/transactions')}
+                className="border-[#E5E7EB] text-[#1F3A5F] hover:bg-[#F8FAFC]"
+              >
+                <FileText className="mr-2 h-4 w-4" />Historique
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/stocks')}
+                className="border-[#E5E7EB] text-[#1F3A5F] hover:bg-[#F8FAFC]"
+              >
+                <Package className="mr-2 h-4 w-4" />Stocks
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Clients */}
+        {recentClients.length > 0 && (
+          <div className="bg-[#F8FAFC] rounded-lg p-4 border border-[#E5E7EB]">
+            <h3 className="text-sm font-medium text-[#6B7280] mb-3">Clients récents</h3>
+            <div className="flex gap-2 flex-wrap">
+              {recentClients.map((client) => (
+                <button
+                  key={client.id}
+                  onClick={() => handleSelectClient(client)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                    selectedClient?.id === client.id
+                      ? "bg-[#1F3A5F] text-white border-[#1F3A5F]"
+                      : "bg-white border-[#E5E7EB] hover:bg-[#F8FAFC]"
+                  }`}
+                >
+                  <span className="text-sm font-medium">{client.name}</span>
+                  {client.debt > 0 && (
+                    <Badge className={`text-xs ${selectedClient?.id === client.id ? "bg-[#F9C74F] text-black" : "bg-[#C62828] text-white"}`}>
+                      {client.debt.toLocaleString()} F
+                    </Badge>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {isDayClosed && (
           <div className="bg-[#F9C74F]/10 border border-[#F9C74F]/30 rounded-lg p-4">
@@ -525,6 +618,70 @@ export default function CashierDashboard() {
               clientName={selectedClient.name}
               currentCageots={selectedClient.cageots}
             />
+            {/* Quick Pay Dialog */}
+            <Dialog open={quickPayOpen} onOpenChange={setQuickPayOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-[#2E7D32]">
+                    <DollarSign className="h-5 w-5" />
+                    Paiement rapide
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="bg-[#F8FAFC] rounded-lg p-3">
+                    <p className="text-sm text-[#6B7280]">Client</p>
+                    <p className="font-medium text-[#1F2937]">{selectedClient?.name}</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="quickPayAmount">Montant</Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="quickPayAmount"
+                        type="text"
+                        value={quickPayAmount}
+                        onChange={(e) => setQuickPayAmount(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Entrez le montant"
+                        className="pl-10"
+                      />
+                      <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
+                    </div>
+                    {selectedClient && selectedClient.debt > 0 && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => setQuickPayAmount(selectedClient.debt.toString())}
+                        className="mt-1 h-auto p-0 text-[#1F3A5F]"
+                      >
+                        dette: {selectedClient.debt.toLocaleString()} F
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setQuickPayOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const amount = parseInt(quickPayAmount.replace(/\D/g, "")) || 0;
+                      if (amount > 0) {
+                        toast({
+                          title: "Paiement enregistré",
+                          description: `Paiement de ${amount.toLocaleString()} F pour ${selectedClient?.name}`,
+                        });
+                        setQuickPayOpen(false);
+                        setQuickPayAmount("");
+                      }
+                    }}
+                    disabled={!quickPayAmount || parseInt(quickPayAmount.replace(/\D/g, "")) <= 0}
+                    className="bg-[#2E7D32] hover:bg-[#2E7D32]/90"
+                  >
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Confirmer
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </div>

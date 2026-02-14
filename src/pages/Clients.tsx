@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Phone, MessageCircle, UserPlus, ChevronLeft, ChevronRight, Users, UserCheck, DollarSign, ShoppingCart, Loader2, Edit2, Trash2 } from "lucide-react";
+import { Search, Phone, MessageCircle, UserPlus, ChevronLeft, ChevronRight, Users, UserCheck, DollarSign, ShoppingCart, Loader2, Edit2, Trash2, ArrowUpDown } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,9 @@ export default function Clients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentClient, setCurrentClient] = useState<Client | null>(null);
+  
+  // Sorting state
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -165,16 +168,28 @@ export default function Clients() {
     }
   );
 
+  // Sort clients by last purchase date
+  const sortedClients = [...filteredClients].sort((a, b) => {
+    // Handle empty dates
+    if (!a.lastPurchase && !b.lastPurchase) return 0;
+    if (!a.lastPurchase) return 1;
+    if (!b.lastPurchase) return -1;
+    
+    const dateA = new Date(a.lastPurchase).getTime();
+    const dateB = new Date(b.lastPurchase).getTime();
+    return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+  });
+
   // Calculate KPI metrics
   const totalClients = clients.length;
   const activeClients = clients.filter(c => c.isActive).length;
   const totalDebt = clients.reduce((sum, c) => sum + c.debt, 0);
   const totalPurchases = clients.reduce((sum, c) => sum + c.totalPurchases, 0);
 
-  const totalPages = Math.ceil(filteredClients.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(sortedClients.length / ITEMS_PER_PAGE);
   const startIndex = (page - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentClients = filteredClients.slice(startIndex, endIndex);
+  const currentClients = sortedClients.slice(startIndex, endIndex);
 
   const openClientProfile = (clientId: string) => {
     navigate(`/clients/${clientId}`);
@@ -495,7 +510,7 @@ export default function Clients() {
               </Select>
               
               {/* Reset Filters Button */}
-              {(statusFilter !== "all" || debtFilter !== "all" || cageotsFilter !== "all" || searchQuery !== "") && (
+              {(statusFilter !== "all" || debtFilter !== "all" || cageotsFilter !== "all" || searchQuery !== "" || sortOrder !== "newest") && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -504,6 +519,7 @@ export default function Clients() {
                     setDebtFilter("all");
                     setCageotsFilter("all");
                     setSearchQuery("");
+                    setSortOrder("newest");
                     setPage(1);
                   }}
                   className="border-[#E5E7EB] text-[#6B7280]"
@@ -511,11 +527,33 @@ export default function Clients() {
                   Réinitialiser
                 </Button>
               )}
+              
+              {/* Sort Select */}
+              <Select value={sortOrder} onValueChange={(value: "newest" | "oldest") => { setSortOrder(value); setPage(1); }}>
+                <SelectTrigger className="w-[180px] border-[#E5E7EB]">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="h-4 w-4" />
+                    <SelectValue placeholder="Trier par date" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">
+                    <div className="flex items-center gap-2">
+                      <span>Plus récents</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="oldest">
+                    <div className="flex items-center gap-2">
+                      <span>Plus anciens</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Results Count */}
             <p className="text-sm text-[#6B7280]">
-              {filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''} trouvé{filteredClients.length !== 1 ? 's' : ''}
+              {sortedClients.length} client{sortedClients.length !== 1 ? 's' : ''} trouvé{sortedClients.length !== 1 ? 's' : ''}
             </p>
 
             {/* Clients List */}
@@ -619,7 +657,7 @@ export default function Clients() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-[#E5E7EB]">
             <p className="text-sm text-[#6B7280]">
-              Affichage de {startIndex + 1} à {Math.min(endIndex, filteredClients.length)} sur {filteredClients.length} résultats
+              Affichage de {startIndex + 1} à {Math.min(endIndex, sortedClients.length)} sur {sortedClients.length} résultats
             </p>
             <div className="flex items-center gap-2">
               <Button

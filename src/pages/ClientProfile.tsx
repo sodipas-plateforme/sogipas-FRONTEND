@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 import {  
   ArrowLeft, Phone, FileText, CreditCard, Package, 
   Plus, Download, Send, DollarSign, FilePlus, MapPin, Mail, User,
-  ChevronLeft, ChevronRight, CheckSquare, Square, Building2, Loader2
+  ChevronLeft, ChevronRight, CheckSquare, Square, Building2, Loader2, ArrowUpDown
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";

@@ -1,11 +1,13 @@
 import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ReactNode, isValidElement, cloneElement } from "react";
 
 interface KPICardProps {
   title: string;
   value: string | number;
   period?: string;
   trend?: number;
-  icon: LucideIcon;
+  icon: LucideIcon | ReactNode;
   isPositive?: boolean;
   isNegative?: boolean;
 }
@@ -19,6 +21,19 @@ export function KPICard({
   isPositive, 
   isNegative 
 }: KPICardProps) {
+  
+  const renderIcon = () => {
+    if (isValidElement(Icon)) {
+      // If it's already a React element, clone it with the correct classes
+      return cloneElement(Icon as React.ReactElement, {
+        className: cn("h-5 w-5 text-white/70", (Icon as React.ReactElement).props.className)
+      });
+    }
+    // If it's a LucideIcon component, render it with the correct classes
+    const IconComponent = Icon as LucideIcon;
+    return <IconComponent className="h-5 w-5 text-white/70" />;
+  };
+
   return (
     <div 
       className="rounded-lg p-5 flex flex-col justify-between"
@@ -29,7 +44,7 @@ export function KPICard({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <Icon className="h-5 w-5 text-white/70" />
+          {renderIcon()}
           <span className="text-sm font-medium text-white/70">{title}</span>
         </div>
         {trend !== undefined && (
@@ -52,4 +67,3 @@ export function KPICard({
   );
 }
 
-import { cn } from "@/lib/utils";

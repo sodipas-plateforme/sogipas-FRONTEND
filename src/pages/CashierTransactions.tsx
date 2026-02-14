@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { 
   History, DollarSign, FileText, Package, 
   Search, ChevronLeft, ChevronRight, Download,
-  Filter, Calendar, RefreshCw, CheckCircle, Lock
+  Filter, Calendar, RefreshCw, CheckCircle, Lock, ArrowUpDown
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,13 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Transaction {
   id: string;
@@ -47,6 +54,9 @@ export default function CashierTransactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
+  
+  // Sorting state
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -72,10 +82,17 @@ export default function CashierTransactions() {
     return matchesSearch && matchesType;
   });
 
-  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  // Sort transactions by date
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    const dateA = new Date(a.createdAt).getTime();
+    const dateB = new Date(b.createdAt).getTime();
+    return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+  });
+
+  const totalPages = Math.ceil(sortedTransactions.length / ITEMS_PER_PAGE);
   const startIndex = (page - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const displayedTransactions = filteredTransactions.slice(startIndex, endIndex);
+  const displayedTransactions = sortedTransactions.slice(startIndex, endIndex);
 
   const totalPayments = transactions.filter(tx => tx.type === "payment").reduce((sum, tx) => sum + tx.amount, 0);
   const totalInvoices = transactions.filter(tx => tx.type === "invoice").reduce((sum, tx) => sum + tx.amount, 0);
@@ -210,6 +227,28 @@ export default function CashierTransactions() {
             <option value="cageots_in">Cageots +</option>
             <option value="cageots_out">Cageots -</option>
           </select>
+          
+          {/* Sort Select */}
+          <Select value={sortOrder} onValueChange={(value: "newest" | "oldest") => { setSortOrder(value); setPage(1); }}>
+            <SelectTrigger className="w-[180px] border-[#E5E7EB]">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4" />
+                <SelectValue placeholder="Trier par date" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">
+                <div className="flex items-center gap-2">
+                  <span>Plus récents</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="oldest">
+                <div className="flex items-center gap-2">
+                  <span>Plus anciens</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
@@ -247,7 +286,7 @@ export default function CashierTransactions() {
           </div>
           <div className="flex items-center justify-between px-6 py-4 border-t border-[#E5E7EB]">
             <p className="text-sm text-[#6B7280]">
-              Affichage de {startIndex + 1} à {Math.min(endIndex, filteredTransactions.length)} sur {filteredTransactions.length}
+              Affichage de {startIndex + 1} à {Math.min(endIndex, sortedTransactions.length)} sur {sortedTransactions.length}
             </p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} className="border-[#E5E7EB]">
